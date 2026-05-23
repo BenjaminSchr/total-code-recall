@@ -69,9 +69,9 @@
 | W10-T2 | Add OpenRouter LLM provider in tcr-onboard SKILL.md | DONE |
 | W10-T3 | Add OpenRouter LLM provider in tcr-update SKILL.md | DONE |
 
-### Wave 11 — Parallel + Model List
-| W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | TODO |
-| W11-T2 | Live model list from OpenRouter API in tcr-config | TODO |
+### Wave 11 — Parallel + Model List ✓ DONE
+| W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | DONE |
+| W11-T2 | Live model list from OpenRouter API in tcr-config | DONE |
 
 ### Wave 12 — Embedding Provider
 | W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | TODO |
