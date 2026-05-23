@@ -137,7 +137,7 @@ Embedding model:  nomic-embed-text
 Summary model:    devstral:24b
 ```
 
-Re-running `/tcr-onboard` on an already-indexed project clears the existing index and rebuilds from scratch. Use `/tcr-update` for incremental updates.
+Re-running `/tcr-onboard` on an already-indexed project shows a warning with the existing index stats (chunk count, last indexed, commit, model) and requires you to type `YES` to confirm before any data is deleted. Use `/tcr-update` for incremental updates instead.
 
 ---
 
