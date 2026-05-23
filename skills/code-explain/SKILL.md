@@ -353,14 +353,21 @@ try:
 
     conn.close()
 
-    # Deduplicate by chunk_id (keep highest similarity), take top 10
+    # Deduplicate by chunk_id (keep highest similarity)
     seen = {}
     for item in enriched:
         cid = item["chunk_id"]
         if cid not in seen or item["similarity"] > seen[cid]["similarity"]:
             seen[cid] = item
 
-    final = sorted(seen.values(), key=lambda x: x["similarity"], reverse=True)[:10]
+    # Re-rank with weighted score: 0.6 vector + 0.2 graph + 0.2 summary
+    for item in seen.values():
+        vector_score = item["similarity"]
+        graph_score = 1.0 if (item.get("callers") or item.get("callees")) else 0.0
+        summary_score = 0.5 if item.get("file_summary") else 0.0
+        item["final_score"] = 0.6 * vector_score + 0.2 * graph_score + 0.2 * summary_score
+
+    final = sorted(seen.values(), key=lambda x: x["final_score"], reverse=True)[:10]
 
     with open("/tmp/tcr_explain_results.json", "w") as f:
         json.dump(final, f)

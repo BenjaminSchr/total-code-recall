@@ -10,7 +10,7 @@ Semantic code search for Claude Code. Index once, search instantly — no API ke
 
 **The solution:** Run `/code-onboard` once. The plugin splits your code into 50-line chunks, generates summaries with a local LLM (devstral), embeds both the summary and the raw code with a local embedding model (nomic-embed-text), and stores everything in a pgvector database. From then on, `/code-search "date filter"` finds the right file and line range in seconds — without reading a single source file.
 
-Three commands. Zero API keys. All local.
+Five commands. Zero API keys. All local.
 
 ---
 
@@ -254,7 +254,7 @@ Hierarchical summaries (built after chunking):
 /code-explain "query"  ──►  vector search + graph lookup
     ├──►  matched chunks
     ├──►  entity context (callers, callees)
-    └──►  file/module/repo summary
+    └──►  file summary context
 
 /code-overview  ──►  pure DB queries on _entities + _relations (no LLM)
 ```
