@@ -1,6 +1,6 @@
 # STATE — total-code-recall
 
-## Current Phase: V1 COMPLETE
+## Current Phase: V2 — Wave 13 IN PROGRESS
 
 ## V1 Tasks — All DONE
 

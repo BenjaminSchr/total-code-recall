@@ -121,3 +121,9 @@
   - BUG-004 (LOW): Stale error messages → acceptable (not fixed)
   - BUG-005 (MEDIUM): STATE.md not updated → fixed
 - Wave Fix: committed on wave/W12-embedding-provider
+- Merged wave/W12-embedding-provider → dev, tagged W12_done
+
+### Zwischen-UNIFY W12 (2026-05-23)
+- STATE.md updated: phase → V2 Wave 13 IN PROGRESS
+- LOG.md updated
+- Proceeding to Wave 13 — Supabase
