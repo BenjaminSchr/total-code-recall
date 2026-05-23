@@ -42,7 +42,7 @@ Run this shell command:
 git rev-parse --is-inside-work-tree
 ```
 
-- If it fails or returns nothing: print `"Kein Git-Repo gefunden. Bitte erst 'git init' ausführen."` and **stop immediately**.
+- If it fails or returns nothing: print `"No git repository found. Please run 'git init' first."` and **stop immediately**.
 - If it succeeds: extract the repo name:
 
 ```bash
@@ -112,9 +112,9 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_search_meta.py
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Projekt '{project_name}' ist noch nicht indexiert. Bitte erst /code-onboard ausführen."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding-Modell stimmt nicht überein (Index: {old_model}, aktuell: {EMBEDDING_MODEL}). Bitte /code-onboard erneut ausführen."` and **stop**.
-- `DB_FAIL: ...` — print `"Datenbank nicht erreichbar. Bitte DATABASE_URL prüfen und DB starten."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /code-onboard again."` and **stop**.
+- `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{chunk_count}` — extract `chunk_count` and continue.
 
 Store: `chunk_count`.
@@ -161,7 +161,7 @@ Run it with:
 TCR_QUERY="{query_text}" python3 /tmp/tcr_embed_query.py > /tmp/tcr_query_vec.json
 ```
 
-- If the script exits with a non-zero code: print `"Embedding-Fehler: {error}. Bitte sicherstellen dass Ollama läuft und {EMBEDDING_MODEL} verfügbar ist."` and **stop**.
+- If the script exits with a non-zero code: print `"Embedding error: {error}. Please make sure Ollama is running and {EMBEDDING_MODEL} is available."` and **stop**.
 - If it succeeds: read the vector from `/tmp/tcr_query_vec.json`.
 
 ```python
@@ -264,27 +264,27 @@ Report: `"Search complete: {len(results)} results found."`
 If `results` is empty: print the following and stop (this is not an error):
 
 ```
-Keine Ergebnisse gefunden für: "{query_text}"
+No results found for: "{query_text}"
 
-Mögliche Ursachen:
-- Der Suchbegriff ist zu spezifisch — versuche andere Formulierungen
-- Das Projekt wurde noch nicht vollständig indexiert
-- Der gesuchte Code existiert nicht im Projekt
+Possible reasons:
+- The search term is too specific — try different wording
+- The project has not been fully indexed yet
+- The code you are looking for does not exist in the project
 ```
 
 If results are found, print the following header:
 
 ```
-Suchergebnisse für: "{query_text}"
-Projekt: {project_name}
-Gefunden: {len(results)} Treffer
+Search results for: "{query_text}"
+Project: {project_name}
+Found: {len(results)} results
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 Then for each result, print:
 
 ```
-[{rank}] {file_path}  Zeilen {line_start}–{line_end}  Typ: {type}  Score: {similarity:.4f}
+[{rank}] {file_path}  Lines {line_start}–{line_end}  Type: {type}  Score: {similarity:.4f}
 ─────────────────────────────────────────────────
 {content}
 
@@ -302,8 +302,8 @@ After the last result, print:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tipp: Typ "summary" = KI-Beschreibung des Chunks. Typ "code" = Quellcode.
-Beide Typen können auf denselben Chunk_id verweisen — der Score entscheidet welcher Typ besser passt.
+Tip: Type "summary" = AI-generated description of the chunk. Type "code" = raw source.
+Both types can reference the same chunk_id — the score determines which type is a better match.
 ```
 
 ---

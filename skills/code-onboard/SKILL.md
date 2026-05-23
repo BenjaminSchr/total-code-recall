@@ -46,7 +46,7 @@ Run this shell command:
 git rev-parse --is-inside-work-tree
 ```
 
-- If it fails or returns nothing: print `"Kein Git-Repo gefunden. Bitte erst 'git init' ausführen."` and **stop immediately**.
+- If it fails or returns nothing: print `"No git repository found. Please run 'git init' first."` and **stop immediately**.
 - If it succeeds: extract the repo name:
 
 ```bash
@@ -86,7 +86,7 @@ Report: `"Project name: {project_name}, HEAD: {HEAD_HASH[:8]}"`
 curl -s {OLLAMA_URL}/api/tags
 ```
 
-- If this fails: print `"Ollama nicht erreichbar unter {OLLAMA_URL}. Bitte Ollama starten."` and **stop**.
+- If this fails: print `"Ollama not reachable at {OLLAMA_URL}. Please start Ollama."` and **stop**.
 - Parse the JSON response and check if `EMBEDDING_MODEL` and `SUMMARY_MODEL` are listed under `"models"[].name`.
 
 ### 2b. Pull missing models
@@ -121,7 +121,7 @@ except Exception as e:
 ```
 
 - If output is `DB_OK`: continue.
-- If output starts with `DB_FAIL`: print `"Datenbank nicht erreichbar. Bitte DATABASE_URL prüfen und DB starten."` and **stop**.
+- If output starts with `DB_FAIL`: print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 
 ---
 
@@ -491,21 +491,21 @@ Report: `"_index_meta updated for project '{project_name}'."`
 
 **Goal:** Print a final summary to the user.
 
-Print the following (in German — user-facing text):
+Print the following:
 
 ```
-Indexierung abgeschlossen!
+Indexing complete!
 
-Projekt:          {project_name}
-Tabelle:          {project_name}
+Project:          {project_name}
+Table:            {project_name}
 Commit:           {HEAD_HASH[:8]} — {HEAD_MESSAGE}
-Dateien:          {len(files_to_index)}
+Files:            {len(files_to_index)}
 Chunks:           {len(chunks)}
-Zeilen in DB:     {len(chunks) * 2}  (summary + code je Chunk)
-Embedding-Modell: {EMBEDDING_MODEL}
-Summary-Modell:   {SUMMARY_MODEL}
+Rows in DB:       {len(chunks) * 2}  (summary + code per chunk)
+Embedding model:  {EMBEDDING_MODEL}
+Summary model:    {SUMMARY_MODEL}
 
-Jetzt kannst du /code-search verwenden um deinen Code semantisch zu durchsuchen.
+You can now use /code-search to semantically search your code.
 ```
 
 ---
@@ -529,7 +529,7 @@ Do not continue to the next step if a critical error occurred. Print the error c
 
 ### Model not available
 
-- If `ollama pull` fails (no internet, wrong model name): print `"Modell {model_name} konnte nicht geladen werden. Bitte manuell ausführen: ollama pull {model_name}"` and **stop**.
+- If `ollama pull` fails (no internet, wrong model name): print `"Model {model_name} could not be pulled. Please run manually: ollama pull {model_name}"` and **stop**.
 
 ### Re-indexing an existing project
 

@@ -46,7 +46,7 @@ Run this shell command:
 git rev-parse --is-inside-work-tree
 ```
 
-- If it fails or returns nothing: print `"Kein Git-Repo gefunden. Bitte erst 'git init' ausführen."` and **stop immediately**.
+- If it fails or returns nothing: print `"No git repository found. Please run 'git init' first."` and **stop immediately**.
 - If it succeeds: extract the repo name:
 
 ```bash
@@ -123,9 +123,9 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_meta.py
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Projekt '{project_name}' ist noch nicht indexiert. Bitte erst /code-onboard ausführen."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding-Modell hat sich geändert (war: {old_model}, jetzt: {EMBEDDING_MODEL}). Bitte /code-onboard erneut ausführen um vollständig neu zu indexieren."` and **stop**.
-- `DB_FAIL: ...` — print `"Datenbank nicht erreichbar. Bitte DATABASE_URL prüfen und DB starten."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model has changed (was: {old_model}, now: {EMBEDDING_MODEL}). Please run /code-onboard again to fully re-index."` and **stop**.
+- `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{last_hash}` — extract `LAST_HASH` from the output and continue.
 
 Store: `LAST_HASH`.
@@ -144,7 +144,7 @@ Run this git diff command:
 git diff --name-status {LAST_HASH}..HEAD
 ```
 
-If the output is empty (no changes since last index): print `"Keine neuen Commits seit letztem Index ({LAST_HASH[:8]}). Nichts zu tun."` and **stop** (this is a successful no-op, not an error).
+If the output is empty (no changes since last index): print `"No new commits since last index ({LAST_HASH[:8]}). Nothing to do."` and **stop** (this is a successful no-op, not an error).
 
 **Categorize each line** of the output by status letter using this Python logic:
 
@@ -522,22 +522,22 @@ Report: `"_index_meta updated for project '{project_name}': HEAD={HEAD_HASH[:8]}
 
 **Goal:** Print a final summary to the user.
 
-Print the following (in German — user-facing text):
+Print the following:
 
 ```
-Update abgeschlossen!
+Update complete!
 
-Projekt:              {project_name}
-Letzter Index:        {LAST_HASH[:8]}
-Neuer Stand:          {HEAD_HASH[:8]} — {HEAD_MESSAGE}
-Dateien neu indexiert:{len(files_to_reindex)}
-Dateien gelöscht:     {len(files_to_delete)}
-Chunks neu:           {len(chunks)}
-Gesamt Chunks in DB:  {chunk_count}
-Embedding-Modell:     {EMBEDDING_MODEL}
+Project:              {project_name}
+Previous index:       {LAST_HASH[:8]}
+Current HEAD:         {HEAD_HASH[:8]} — {HEAD_MESSAGE}
+Files re-indexed:     {len(files_to_reindex)}
+Files removed:        {len(files_to_delete)}
+New chunks:           {len(chunks)}
+Total chunks in DB:   {chunk_count}
+Embedding model:      {EMBEDDING_MODEL}
 
-Commits verarbeitet: von {LAST_HASH[:8]} bis {HEAD_HASH[:8]}
-Nächster Schritt: /code-search verwenden um deinen Code semantisch zu durchsuchen.
+Commits processed: from {LAST_HASH[:8]} to {HEAD_HASH[:8]}
+Next step: use /code-search to semantically search your code.
 ```
 
 ---
