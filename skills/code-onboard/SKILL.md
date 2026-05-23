@@ -795,7 +795,7 @@ Report: `"Indexed {len(chunks)} chunks ({len(chunks)*2} rows inserted)."`
 
 ## Step 7: Generate Hierarchical Summaries
 
-**Goal:** For each indexed file, aggregate its chunk-level summaries into a single file-level summary (via devstral), embed it, and store it in the `_summaries` table with `level='file'`.
+**Goal:** For each indexed file, aggregate its chunk-level summaries into a file-level summary (via devstral), embed it, and store it in the `_summaries` table with `level='file'`. Then aggregate file summaries per directory into module-level summaries (`level='module'`), and aggregate those into a single repo-level summary (`level='repo'`).
 
 Write this entire script to `/tmp/tcr_build_summaries.py` and run it with `python3 /tmp/tcr_build_summaries.py`:
 
@@ -821,6 +821,26 @@ SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 
+def generate_summary(prompt):
+    """Call devstral via Ollama generate API to produce a summary."""
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/generate",
+        json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.json()["response"].strip()
+
+def get_embedding(text):
+    """Call embedding model via Ollama embed API."""
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/embed",
+        json={"model": EMBEDDING_MODEL, "input": text},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.json()["embeddings"][0]
+
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
 
@@ -828,7 +848,8 @@ cur  = conn.cursor()
 cur.execute(f"SELECT DISTINCT file_path FROM {PROJECT_NAME} WHERE type = 'summary'")
 file_paths = [row[0] for row in cur.fetchall()]
 
-count = 0
+# --- File summaries ---
+file_count = 0
 for file_path in file_paths:
     # Collect all chunk summaries for this file, ordered by line_start
     cur.execute(
@@ -843,30 +864,16 @@ for file_path in file_paths:
 
     # Generate file-level summary via devstral
     try:
-        resp = requests.post(
-            f"{OLLAMA_URL}/api/generate",
-            json={
-                "model": SUMMARY_MODEL,
-                "prompt": f"Summarize this file's purpose and key components in 2-3 sentences:\n\n{concatenated}",
-                "stream": False,
-            },
-            timeout=120,
+        file_summary = generate_summary(
+            f"Summarize this file's purpose and key components in 2-3 sentences:\n\n{concatenated}"
         )
-        resp.raise_for_status()
-        file_summary = resp.json()["response"].strip()
     except Exception as e:
         print(f"  WARN: summary failed for {file_path}: {e} — skipping")
         continue
 
     # Embed the file summary
     try:
-        embed_resp = requests.post(
-            f"{OLLAMA_URL}/api/embed",
-            json={"model": EMBEDDING_MODEL, "input": file_summary},
-            timeout=60,
-        )
-        embed_resp.raise_for_status()
-        vec = embed_resp.json()["embeddings"][0]
+        vec = get_embedding(file_summary)
     except Exception as e:
         print(f"  WARN: embedding failed for {file_path}: {e} — skipping")
         continue
@@ -877,13 +884,76 @@ for file_path in file_paths:
         f"INSERT INTO {PROJECT_NAME}_summaries (level, scope, content, embedding) VALUES ('file', %s, %s, %s::vector)",
         (file_path, file_summary, vec_str)
     )
-    count += 1
-    print(f"  [{count}] {file_path}", flush=True)
+    file_count += 1
+    print(f"  [file {file_count}] {file_path}", flush=True)
+
+# --- Module summaries (one per directory with 2+ indexed files) ---
+dirs = {}
+for fp in file_paths:
+    d = os.path.dirname(fp) or "."
+    dirs.setdefault(d, []).append(fp)
+
+module_count = 0
+for dir_path, dir_files in dirs.items():
+    if len(dir_files) < 2:
+        continue
+    placeholders = ",".join(["%s"] * len(dir_files))
+    cur.execute(
+        f"SELECT content FROM {PROJECT_NAME}_summaries WHERE level='file' AND scope IN ({placeholders})",
+        dir_files
+    )
+    file_sums = [r[0] for r in cur.fetchall()]
+    if not file_sums:
+        continue
+    try:
+        module_summary = generate_summary(
+            f"Summarize this module (directory: {dir_path}). These are its files:\n\n" + "\n\n".join(file_sums)
+        )
+    except Exception as e:
+        print(f"  WARN: module summary failed for {dir_path}: {e} — skipping")
+        continue
+    try:
+        module_vec = get_embedding(module_summary)
+    except Exception as e:
+        print(f"  WARN: module embedding failed for {dir_path}: {e} — skipping")
+        continue
+    module_vec_str = "[" + ",".join(str(x) for x in module_vec) + "]"
+    cur.execute(
+        f"INSERT INTO {PROJECT_NAME}_summaries (level, scope, content, embedding) VALUES ('module', %s, %s, %s::vector)",
+        (dir_path, module_summary, module_vec_str)
+    )
+    module_count += 1
+    print(f"  [module {module_count}] {dir_path}", flush=True)
+
+# --- Repo summary ---
+cur.execute(
+    f"SELECT content FROM {PROJECT_NAME}_summaries WHERE level IN ('module', 'file') ORDER BY level DESC"
+)
+all_sums = [r[0] for r in cur.fetchall()][:20]  # cap at 20 to fit devstral context
+try:
+    repo_summary = generate_summary(
+        "Summarize this entire codebase in 3-5 sentences:\n\n" + "\n\n".join(all_sums)
+    )
+except Exception as e:
+    print(f"  WARN: repo summary failed: {e} — using fallback")
+    repo_summary = f"Codebase index for project {PROJECT_NAME}."
+try:
+    repo_vec = get_embedding(repo_summary)
+except Exception as e:
+    print(f"  WARN: repo embedding failed: {e} — skipping repo summary")
+    repo_vec = None
+
+if repo_vec is not None:
+    repo_vec_str = "[" + ",".join(str(x) for x in repo_vec) + "]"
+    cur.execute(
+        f"INSERT INTO {PROJECT_NAME}_summaries (level, scope, content, embedding) VALUES ('repo', %s, %s, %s::vector)",
+        (PROJECT_NAME, repo_summary, repo_vec_str)
+    )
 
 conn.commit()
 cur.close()
 conn.close()
-print(f"SUMMARIES_OK: {count} file summaries generated")
+print(f"SUMMARIES_OK: {file_count} file, {module_count} module, 1 repo summaries generated")
 ```
 
 Run it with:
@@ -895,7 +965,7 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_build_summaries.py
 - If output ends with `SUMMARIES_OK`: continue.
 - If the script exits with a non-zero code: print the error and **stop**.
 
-Report: `"Generated {count} file-level summaries in {project_name}_summaries."`
+Report: `"Generated {file_count} file, {module_count} module, and 1 repo summary in {project_name}_summaries."`
 
 ---
 

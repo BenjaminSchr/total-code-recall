@@ -776,6 +776,67 @@ Report: `"AST re-parse complete: {entity_count} entities, {relation_count} relat
 
 ---
 
+### 5d. Rebuild Summaries
+
+**Goal:** Wipe all existing summaries for this project and regenerate file, module, and repo summaries using the updated index. Uses the same `tcr_build_summaries.py` as onboard Step 7.
+
+**Delete all existing summaries** (all levels — file, module, repo) before regenerating:
+
+Write this to `/tmp/tcr_delete_summaries.py` and run it with `python3 /tmp/tcr_delete_summaries.py`:
+
+```python
+import os, sys
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+PROJECT_NAME = os.environ["TCR_PROJECT"]
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM {PROJECT_NAME}_summaries")
+    deleted = cur.rowcount
+    conn.commit()
+    conn.close()
+    print(f"SUMMARIES_CLEARED:{deleted}")
+except Exception as e:
+    print(f"SUMMARIES_CLEAR_FAIL: {e}")
+    sys.exit(1)
+```
+
+Run it with:
+
+```bash
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_delete_summaries.py
+```
+
+- If output starts with `SUMMARIES_CLEARED`: continue.
+- If output starts with `SUMMARIES_CLEAR_FAIL`: print the error and **stop**.
+
+**Then regenerate all summaries** by writing and running the same `tcr_build_summaries.py` from onboard Step 7 (copy the full script verbatim, including the `generate_summary` and `get_embedding` helper functions):
+
+```bash
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_build_summaries.py
+```
+
+- If output ends with `SUMMARIES_OK`: continue.
+- If the script exits with a non-zero code: print the error and **stop**.
+
+Report: `"Summaries rebuilt: {file_count} file, {module_count} module, 1 repo summaries generated."`
+
+---
+
 ## Step 6: Update _index_meta
 
 **Goal:** Update `_index_meta` with the new HEAD commit hash and the updated total chunk count.
