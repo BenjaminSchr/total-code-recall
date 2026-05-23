@@ -57,6 +57,10 @@ EMBEDDING_MODEL   = _cfg("EMBEDDING_MODEL", "embedding_model",      "nomic-embed
 SUMMARY_MODEL     = _cfg("SUMMARY_MODEL",   "ollama_summary_model", "devstral:24b")
 CHUNK_SIZE        = int(_cfg("CHUNK_SIZE",  "chunk_size",           "50"))
 CHUNK_OVERLAP     = int(_cfg("CHUNK_OVERLAP","chunk_overlap",       "15"))
+LLM_PROVIDER         = _cfg("LLM_PROVIDER",         "llm_provider",          "ollama")
+OPENROUTER_API_KEY   = _cfg("OPENROUTER_API_KEY",    "openrouter_api_key",    "")
+OPENROUTER_MODEL     = _cfg("OPENROUTER_MODEL",      "openrouter_model",      "google/gemini-flash-2.0")
+PARALLEL_WORKERS     = int(_cfg("PARALLEL_WORKERS",  "parallel_workers",      "10"))
 ```
 
 ---
@@ -432,13 +436,32 @@ def generate_summary(code_text):
         "Focus on purpose and behavior, not syntax.\n\n"
         f"```\n{code_text[:3000]}\n```"
     )
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["response"].strip()
+    if LLM_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": OPENROUTER_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 200
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    else:
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/generate", json={
+            "model": SUMMARY_MODEL,
+            "prompt": prompt,
+            "stream": False
+        }, timeout=120)
+        resp.raise_for_status()
+        return resp.json()["response"].strip()
 
 def get_embedding(text):
     resp = requests.post(
