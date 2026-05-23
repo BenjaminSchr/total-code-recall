@@ -53,11 +53,11 @@
 
 ## V2 Tasks — Provider Switch + Config + Rename
 
-### Wave 8 — Rename
-| W8-T1 | Rename skill dirs code-* → tcr-*, update plugin.json paths | TODO |
-| W8-T2 | Update SKILL.md frontmatter names + plugin.json name fields | TODO |
-| W8-T3 | Update README.md command references | TODO |
-| W8-T4 | Verify — zero code-* references remain | TODO |
+### Wave 8 — Rename ✓ DONE
+| W8-T1 | Rename skill dirs code-* → tcr-*, update plugin.json paths | DONE |
+| W8-T2 | Update SKILL.md frontmatter names + plugin.json name fields | DONE |
+| W8-T3 | Update README.md command references | DONE |
+| W8-T4 | Verify — zero code-* references remain | DONE |
 
 ### Wave 9 — Config + Info
 | W9-T1 | Create skills/tcr-config/SKILL.md (wizard + change + reset) | TODO |
