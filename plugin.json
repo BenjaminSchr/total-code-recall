@@ -1,6 +1,6 @@
 {
   "name": "total-code-recall",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Semantic code search plugin for Claude Code. Index, update, and search your codebase with local embeddings via Ollama + pgvector.",
   "author": "BenjaminSchr",
   "skills": [

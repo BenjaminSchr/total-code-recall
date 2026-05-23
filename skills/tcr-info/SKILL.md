@@ -53,7 +53,7 @@ Use `cfg.get("key", "not set")` for all fields to handle partial configs gracefu
 Write `/tmp/tcr_info.py`:
 
 ```python
-import psycopg2, json, os, sys
+import psycopg2, psycopg2.sql, json, os, sys
 
 CONFIG_PATH = os.path.expanduser("~/.config/total-code-recall/config.json")
 try:
@@ -84,7 +84,7 @@ try:
     projects = []
     for tbl in meta_tables:
         project_name = tbl.replace("_index_meta", "")
-        cur.execute(f"SELECT key, value FROM {tbl}")
+        cur.execute(psycopg2.sql.SQL("SELECT key, value FROM {}").format(psycopg2.sql.Identifier(tbl)))
         meta = dict(cur.fetchall())
         projects.append({
             "name": project_name,
