@@ -134,21 +134,42 @@ else:
 
 **Toggle 3 — Database:**
 
-```
+```python
+# Toggle 3 — Database
+print("""
 Database:
-  [1] Local — pgvector (Docker, full control)
-  [2] Cloud — Supabase (no Docker needed, needs connection string)
+  [1] Local — pgvector via Docker (full control, needs Docker)
+  [2] Cloud — Supabase (no Docker, needs connection string)
 
-Enter 1 or 2:
+Enter 1 or 2 [default: 1]:
+""")
+db_choice = input("> ").strip() or "1"
+
+if db_choice == "2":
+    print("""
+Supabase connection string (use the pooler URL for session mode):
+Format: postgresql://[user].[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+
+Find it in: Supabase dashboard → Settings → Database → Connection string → Session mode
+""")
+    db_url = input("Supabase connection string: ").strip()
+    if not db_url:
+        print("ERROR: Connection string required for Supabase. Config not saved for database.")
+    else:
+        # Ensure SSL is appended if missing — use & if URL already has query params
+        if "sslmode=" not in db_url:
+            sep = "&" if "?" in db_url else "?"
+            db_url = db_url + sep + "sslmode=require"
+        cfg["db_provider"] = "supabase"
+        cfg["database_url"] = db_url
+        print("Supabase URL saved (SSL enforced).")
+else:
+    cfg["db_provider"] = "local"
+    default_url = "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db"
+    print(f"Local pgvector default: {default_url}")
+    custom = input("Press Enter to use default, or type custom URL: ").strip()
+    cfg["database_url"] = custom or default_url
 ```
-
-- If `[1]` Local:
-  - Ask: `DATABASE_URL [default: postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db]:`
-  - Set: `cfg["db_provider"] = "local"`, `cfg["database_url"] = <url>`
-
-- If `[2]` Cloud:
-  - Ask: `Supabase connection string (pooler URL with SSL):`
-  - Set: `cfg["db_provider"] = "supabase"`, `cfg["database_url"] = <url>`
 
 ---
 
@@ -205,6 +226,41 @@ Enter 1 or 2 [default: 1]:
         cfg["embedding_provider"] = "ollama"
         cfg["embedding_model"] = "nomic-embed-text"
         print("Using local Ollama embedding: nomic-embed-text")
+
+# Handle [3] — Database change
+if change_choice == "3":
+    print("""
+Database:
+  [1] Local — pgvector via Docker (full control, needs Docker)
+  [2] Cloud — Supabase (no Docker, needs connection string)
+
+Enter 1 or 2 [default: 1]:
+""")
+    db_change_choice = input("> ").strip() or "1"
+
+    if db_change_choice == "2":
+        print("""
+Supabase connection string (use the pooler URL for session mode):
+Format: postgresql://[user].[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+
+Find it in: Supabase dashboard → Settings → Database → Connection string → Session mode
+""")
+        db_url = input("Supabase connection string: ").strip()
+        if not db_url:
+            print("ERROR: Connection string required for Supabase. Config not saved for database.")
+        else:
+            if "sslmode=" not in db_url:
+                sep = "&" if "?" in db_url else "?"
+                db_url = db_url + sep + "sslmode=require"
+            cfg["db_provider"] = "supabase"
+            cfg["database_url"] = db_url
+            print("Supabase URL saved (SSL enforced).")
+    else:
+        cfg["db_provider"] = "local"
+        default_url = "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db"
+        print(f"Local pgvector default: {default_url}")
+        custom = input("Press Enter to use default, or type custom URL: ").strip()
+        cfg["database_url"] = custom or default_url
 
 # Reset:
 os.remove(CONFIG_PATH)

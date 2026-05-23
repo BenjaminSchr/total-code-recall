@@ -77,10 +77,10 @@
 | W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | DONE |
 | W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | DONE |
 
-### Wave 13 — Supabase
-| W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | TODO |
-| W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | TODO |
-| W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | TODO |
+### Wave 13 — Supabase ✓ DONE (pending merge)
+| W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | DONE |
+| W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | DONE |
+| W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | DONE |
 
 ### Wave 14 — Test Suite
 | W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (9 tests) | TODO |
