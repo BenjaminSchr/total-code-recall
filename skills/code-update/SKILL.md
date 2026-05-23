@@ -275,6 +275,8 @@ try:
     for path in stale_paths:
         cur.execute(f"DELETE FROM {PROJECT_NAME} WHERE file_path = %s", (path,))
         deleted_total += cur.rowcount
+        cur.execute(f"DELETE FROM {PROJECT_NAME}_entities WHERE file_path = %s", (path,))
+        # Relations auto-cascade via ON DELETE CASCADE
     conn.commit()
     conn.close()
     print(f"DELETE_OK:{deleted_total}")
@@ -504,6 +506,266 @@ python3 /tmp/tcr_index.py
 - If the script exits with a non-zero code: print the error output and **stop**.
 
 Report: `"Re-indexed {len(chunks)} chunks ({len(chunks)*2} rows inserted)."`
+
+### 5c. Re-parse AST for changed files
+
+**Goal:** Update entity and relation records for files in `files_to_reindex`. Same script as onboard Step 5b — inline duplicate, accepted drift risk.
+
+**Before running**, write the reindex file list to `/tmp/tcr_files.json`:
+
+```python
+import json
+with open("/tmp/tcr_files.json", "w") as f:
+    json.dump(files_to_reindex, f)
+```
+
+Write this entire script to `/tmp/tcr_parse_ast.py` and run it with `TCR_PROJECT="{project_name}" python3 /tmp/tcr_parse_ast.py`:
+
+```python
+import os, sys, json
+
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
+try:
+    from tree_sitter_languages import get_parser
+except ImportError:
+    print("AST_SKIP: tree-sitter not installed. Run: pip install tree-sitter tree-sitter-languages")
+    sys.exit(0)
+
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+PROJECT_NAME = os.environ["TCR_PROJECT"]
+
+# Read file list written before this step
+with open("/tmp/tcr_files.json", "r") as f:
+    all_files = json.load(f)
+
+py_files = [fp for fp in all_files if fp.endswith(".py")]
+if not py_files:
+    print("AST_SKIP: no Python files found")
+    sys.exit(0)
+
+for fp in all_files:
+    if not fp.endswith(".py"):
+        print(f"AST_SKIP_FILE: {fp} (Phase 1 = Python only)")
+
+parser = get_parser("python")
+
+def get_node_text(node, source_bytes):
+    return source_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+
+def get_name_from_node(node, source_bytes):
+    """Extract the identifier name from a definition node."""
+    for child in node.children:
+        if child.type == "identifier":
+            return get_node_text(child, source_bytes)
+    return None
+
+def walk_tree(node):
+    """Yield all nodes in the tree depth-first."""
+    yield node
+    for child in node.children:
+        yield from walk_tree(child)
+
+# --- Pass 1: collect entities ---
+entities = []  # list of dicts: type, name, file_path, line_start, line_end, parent_name
+
+for fp in py_files:
+    try:
+        with open(fp, "rb") as f:
+            source_bytes = f.read()
+    except Exception as e:
+        print(f"AST_WARN: cannot read {fp}: {e}")
+        continue
+
+    total_lines = source_bytes.count(b"\n") + 1
+    entities.append({
+        "type": "file",
+        "name": fp,
+        "file_path": fp,
+        "line_start": 1,
+        "line_end": total_lines,
+        "parent_name": None,
+        "parent_type": None,
+    })
+
+    tree = parser.parse(source_bytes)
+    root = tree.root_node
+
+    for node in walk_tree(root):
+        if node.type in ("class_definition", "function_definition"):
+            name = get_name_from_node(node, source_bytes)
+            if not name:
+                continue
+            parent = node.parent
+            if node.type == "function_definition" and parent and parent.type == "class_definition":
+                entity_type = "method"
+                parent_name = get_name_from_node(parent, source_bytes)
+                parent_type = "class"
+            elif node.type == "class_definition":
+                entity_type = "class"
+                parent_name = fp  # file is the parent
+                parent_type = "file"
+            else:
+                entity_type = "function"
+                parent_name = fp  # file is the parent
+                parent_type = "file"
+
+            entities.append({
+                "type": entity_type,
+                "name": name,
+                "file_path": fp,
+                "line_start": node.start_point[0] + 1,  # 1-based
+                "line_end": node.end_point[0] + 1,
+                "parent_name": parent_name,
+                "parent_type": parent_type,
+            })
+
+        elif node.type in ("import_statement", "import_from_statement"):
+            # Use the raw text of the import statement as the name
+            name = get_node_text(node, source_bytes).split("\n")[0].strip()
+            entities.append({
+                "type": "import",
+                "name": name,
+                "file_path": fp,
+                "line_start": node.start_point[0] + 1,
+                "line_end": node.end_point[0] + 1,
+                "parent_name": fp,
+                "parent_type": "file",
+            })
+
+# --- Connect to DB ---
+conn = psycopg2.connect(DATABASE_URL)
+cur = conn.cursor()
+
+# Clear existing entities (CASCADE deletes relations)
+cur.execute(f"DELETE FROM {PROJECT_NAME}_entities")
+conn.commit()
+
+# --- INSERT entities and collect name->id map ---
+name_to_id = {}  # entity name -> db id
+
+INSERT_ENTITY = f"""
+INSERT INTO {PROJECT_NAME}_entities (type, name, file_path, line_start, line_end, parent_id)
+VALUES (%s, %s, %s, %s, %s, %s)
+RETURNING id
+"""
+
+for ent in entities:
+    parent_id = name_to_id.get(ent["parent_name"]) if ent["parent_name"] else None
+    cur.execute(INSERT_ENTITY, (
+        ent["type"], ent["name"], ent["file_path"],
+        ent["line_start"], ent["line_end"], parent_id
+    ))
+    row = cur.fetchall()
+    ent_id = row[0][0]
+    name_to_id[ent["name"]] = ent_id
+
+conn.commit()
+entity_count = len(entities)
+
+# --- Pass 2: extract relations ---
+relations = []  # list of (from_name, to_name, rel_type)
+
+INSERT_RELATION = f"""
+INSERT INTO {PROJECT_NAME}_relations (from_id, to_id, type)
+VALUES (%s, %s, %s)
+"""
+
+relation_count = 0
+
+# contains relations (already encoded via parent_id, also insert explicit relation rows)
+for ent in entities:
+    if ent["parent_name"] and ent["type"] in ("class", "function", "method", "import"):
+        from_id = name_to_id.get(ent["parent_name"])
+        to_id = name_to_id.get(ent["name"])
+        if from_id and to_id:
+            cur.execute(INSERT_RELATION, (from_id, to_id, "contains"))
+            relation_count += 1
+
+# calls and imports relations from AST
+for fp in py_files:
+    try:
+        with open(fp, "rb") as f:
+            source_bytes = f.read()
+    except Exception:
+        continue
+
+    tree = parser.parse(source_bytes)
+
+    for node in walk_tree(tree.root_node):
+        # calls: function call nodes
+        if node.type == "call":
+            # get the function name from the first child (attribute or identifier)
+            func_node = node.child_by_field_name("function")
+            if func_node:
+                if func_node.type == "identifier":
+                    called_name = get_node_text(func_node, source_bytes)
+                elif func_node.type == "attribute":
+                    # e.g. obj.method — take the attribute name
+                    attr = func_node.child_by_field_name("attribute")
+                    called_name = get_node_text(attr, source_bytes) if attr else None
+                else:
+                    called_name = None
+
+                if called_name and called_name in name_to_id:
+                    # find the enclosing function/method
+                    caller = node.parent
+                    while caller and caller.type not in ("function_definition",):
+                        caller = caller.parent
+                    if caller:
+                        caller_name = get_name_from_node(caller, source_bytes)
+                        from_id = name_to_id.get(caller_name)
+                        to_id = name_to_id.get(called_name)
+                        if from_id and to_id and from_id != to_id:
+                            cur.execute(INSERT_RELATION, (from_id, to_id, "calls"))
+                            relation_count += 1
+
+        # imports relations
+        elif node.type in ("import_statement", "import_from_statement"):
+            import_text = get_node_text(node, source_bytes).split("\n")[0].strip()
+            from_id = name_to_id.get(import_text)
+            if from_id:
+                # match imported names against known entities
+                for child in walk_tree(node):
+                    if child.type == "dotted_name" or child.type == "identifier":
+                        imported = get_node_text(child, source_bytes)
+                        to_id = name_to_id.get(imported)
+                        if to_id and to_id != from_id:
+                            cur.execute(INSERT_RELATION, (from_id, to_id, "imports"))
+                            relation_count += 1
+                            break  # one imports relation per import statement is enough
+
+conn.commit()
+cur.close()
+conn.close()
+
+print(f"AST_OK: {entity_count} entities, {relation_count} relations")
+```
+
+Run it with:
+
+```bash
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_parse_ast.py
+```
+
+- If output starts with `AST_OK`: continue normally.
+- If output starts with `AST_SKIP`: log the skip reason and continue — this step is **non-blocking**.
+- If output starts with `AST_WARN`: log the warning and continue.
+- If the script exits with a non-zero code: print the error and **stop**.
+
+Report: `"AST re-parse complete: {entity_count} entities, {relation_count} relations extracted."` or `"AST re-parse skipped: {reason}."`
 
 ---
 
