@@ -1,6 +1,10 @@
+# Required
 psycopg2-binary
 requests
 
-# Optional: structural analysis (/code-overview, /code-explain)
+# Optional — uncomment for structural analysis (/code-overview, /code-explain)
+# Adds entity/relation extraction via AST parsing (Python files)
 # tree-sitter
 # tree-sitter-languages
+#
+# Install all: pip install psycopg2-binary requests tree-sitter tree-sitter-languages

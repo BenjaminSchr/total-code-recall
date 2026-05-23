@@ -43,8 +43,8 @@ pip install -r requirements.txt
 docker compose up -d
 
 # 5. Pull the required Ollama models
-ollama pull nomic-embed-text
-ollama pull devstral:24b
+ollama pull nomic-embed-text          # ~274 MB, embedding model
+ollama pull devstral:24b              # ~14 GB download, needs ~16 GB VRAM (GPU recommended)
 
 # 6. Install the plugin
 claude plugin add github:BenjaminSchr/total-code-recall
@@ -59,9 +59,9 @@ If you already have a pgvector-enabled PostgreSQL instance:
 ```bash
 # 1. Create the database and user
 psql -U postgres -c "CREATE USER code_index_user WITH PASSWORD 'code_index_pass';"
-psql -U postgres -c "CREATE DATABASE code_index_db OWNER code_index_user;"
+psql -U postgres -c "CREATE DATABASE code_index_db;"
 
-# 2. Run the setup script (requires superuser for CREATE EXTENSION)
+# 2. Run the setup script as superuser (creates extension + tables + grants permissions)
 psql -U postgres -d code_index_db -f scripts/setup_db.sql
 
 # 3. Copy config and set DATABASE_URL to your instance
@@ -221,7 +221,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `CHUNK_SIZE` | `50` | Lines per chunk |
 | `CHUNK_OVERLAP` | `15` | Overlap lines between consecutive chunks |
 
-The `.env` file is read from the current working directory at runtime. Place it in the project root you are indexing, or in the plugin directory.
+The `.env` file is read from the current working directory at runtime. Place it in the root of the project you are indexing — the skills look for `.env` in the directory where you run the command.
 
 ---
 
@@ -301,10 +301,24 @@ Yes. Each project gets its own table named after the Git repo (e.g., `my_project
 ## Requirements
 
 - **Git** — all five skills require a Git repository (`git init` if needed)
-- **Ollama** — local LLM server for summaries and embeddings (`ollama serve`)
-- **PostgreSQL 14+ with pgvector** — via Docker (`docker compose up -d`) or your own instance
-- **Python 3.10+** — with `psycopg2-binary` and `requests` (`pip install psycopg2-binary requests`)
+- **Ollama 0.3+** — local LLM server for summaries and embeddings (`ollama serve`). `devstral:24b` requires ~16 GB VRAM (GPU recommended).
+- **PostgreSQL 14+ with pgvector 0.5+** — via Docker (`docker compose up -d`) or your own instance
+- **Python 3.10+** — with `psycopg2-binary` and `requests` (`pip install -r requirements.txt`)
 - **tree-sitter and tree-sitter-languages** (optional) — enables structural analysis for `/code-overview` and `/code-explain` (`pip install tree-sitter tree-sitter-languages`)
+
+---
+
+## Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Ollama not reachable` | Ollama not running | `ollama serve` |
+| `Model not found` | Embedding/summary model not pulled | `ollama pull nomic-embed-text && ollama pull devstral:24b` |
+| `DB connection failed` | PostgreSQL not running or wrong URL | Check `DATABASE_URL` in `.env`, verify DB is up |
+| `permission denied for extension vector` | setup_db.sql not run as superuser | Run as postgres user: `psql -U postgres -d code_index_db -f scripts/setup_db.sql` |
+| `No git repository found` | Not inside a git repo | `cd` into your project and run `git init` if needed |
+| `Embedding model mismatch` | `.env` model changed since last index | Re-run `/code-onboard` to rebuild with new model |
+| `AST_SKIP: tree-sitter not installed` | tree-sitter not available (non-blocking) | `pip install tree-sitter tree-sitter-languages` for structural analysis |
 
 ---
 
