@@ -137,3 +137,9 @@
   - BUG-W13-002 (MEDIUM): SSL separator always `?` → fixed (uses `&` if URL already has query params)
   - BUG-W13-003 (LOW): STATE.md not updated → fixed
 - Wave Fix: committed directly on wave/W13-supabase
+- Merged wave/W13-supabase → dev, tagged W13_done
+
+### Zwischen-UNIFY W13 (2026-05-23)
+- STATE.md updated: phase → V2 Wave 14 IN PROGRESS
+- LOG.md updated
+- Proceeding to Wave 14 — Test Suite
