@@ -38,13 +38,20 @@ Config: ~/.config/total-code-recall/config.json
 
   LLM Provider:       <llm_provider>  (<ollama_summary_model or openrouter_model>)
   Embedding Provider: <embedding_provider>  (<embedding_model>)
-  DB Provider:        <db_provider>
-  Database URL:       <database_url, truncated to 60 chars if longer>
+  DB Provider:        <db_provider>  (<database_url truncated to 50 chars>)
   Parallel Workers:   <parallel_workers, default 10>
   Chunk Size:         <chunk_size, default 50> lines  (overlap: <chunk_overlap, default 15>)
 ```
 
 Use `cfg.get("key", "not set")` for all fields to handle partial configs gracefully.
+
+```python
+# Display helpers for DB Provider line
+db_provider = cfg.get("db_provider", "local")
+db_url_raw = cfg.get("database_url", "not set")
+db_url_display = (db_url_raw[:50] + "...") if len(db_url_raw) > 50 else db_url_raw
+# print: f"  DB Provider:        {db_provider}  ({db_url_display})"
+```
 
 ---
 
