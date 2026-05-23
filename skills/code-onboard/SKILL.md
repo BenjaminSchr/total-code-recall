@@ -600,7 +600,7 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Re-indexing an existing project
 
 - Step 3 uses `CREATE TABLE IF NOT EXISTS` — safe to re-run.
-- The INSERT in Step 6 appends new rows. If you want a full re-index (wipe and rebuild), run `DELETE FROM {project_name}` before Step 6. The skill does NOT auto-delete — use `/code-update` for incremental updates.
+- Re-running `/code-onboard` on an already-indexed project will auto-delete existing data before re-indexing. This is safe and idempotent. Use `/code-update` for incremental updates instead.
 
 ### Embedding dimension mismatch
 
