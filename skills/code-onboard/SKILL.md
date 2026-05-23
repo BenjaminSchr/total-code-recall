@@ -1,0 +1,543 @@
+---
+name: code-onboard
+description: Index a Git project into pgvector for semantic code search. Discovers files, chunks them, generates summaries via devstral, embeds both summary and code via nomic-embed-text, bulk-inserts into PostgreSQL.
+---
+
+# /code-onboard — Skill Instructions
+
+You are executing the **code-onboard** skill. Follow these 8 steps in order. Do not skip any step. At each step, report what you are doing.
+
+---
+
+## Config
+
+Read configuration from environment variables. Use these defaults if not set:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db` | PostgreSQL connection string |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL |
+| `EMBEDDING_MODEL` | `nomic-embed-text` | Model for embeddings (summary + code) |
+| `SUMMARY_MODEL` | `devstral:24b` | Model for generating summaries |
+| `CHUNK_SIZE` | `50` | Lines per chunk |
+| `CHUNK_OVERLAP` | `15` | Overlap lines between consecutive chunks |
+
+At the start, read these from the environment:
+
+```python
+import os
+DATABASE_URL   = os.getenv("DATABASE_URL",   "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+OLLAMA_URL     = os.getenv("OLLAMA_URL",     "http://localhost:11434")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+SUMMARY_MODEL  = os.getenv("SUMMARY_MODEL",  "devstral:24b")
+CHUNK_SIZE     = int(os.getenv("CHUNK_SIZE",   "50"))
+CHUNK_OVERLAP  = int(os.getenv("CHUNK_OVERLAP", "15"))
+```
+
+---
+
+## Step 1: Git Gate
+
+**Goal:** Confirm we are inside a Git repository and extract the project name.
+
+Run this shell command:
+
+```bash
+git rev-parse --is-inside-work-tree
+```
+
+- If it fails or returns nothing: print `"Kein Git-Repo gefunden. Bitte erst 'git init' ausführen."` and **stop immediately**.
+- If it succeeds: extract the repo name:
+
+```bash
+basename $(git rev-parse --show-toplevel)
+```
+
+**Sanitize the repo name** using this Python logic:
+
+```python
+import re
+raw_name = "<result of basename command>"
+project_name = raw_name.lower()
+project_name = project_name.replace("-", "_")
+project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+```
+
+Also extract the HEAD commit hash and most recent commit message for use in Step 6:
+
+```bash
+git log -1 --format="%H"
+git log -1 --format="%s"
+```
+
+Store: `project_name`, `HEAD_HASH`, `HEAD_MESSAGE`.
+
+Report: `"Project name: {project_name}, HEAD: {HEAD_HASH[:8]}"`
+
+---
+
+## Step 2: Check Prerequisites
+
+**Goal:** Confirm Ollama is running, both models are available, and the DB is reachable.
+
+### 2a. Check Ollama
+
+```bash
+curl -s {OLLAMA_URL}/api/tags
+```
+
+- If this fails: print `"Ollama nicht erreichbar unter {OLLAMA_URL}. Bitte Ollama starten."` and **stop**.
+- Parse the JSON response and check if `EMBEDDING_MODEL` and `SUMMARY_MODEL` are listed under `"models"[].name`.
+
+### 2b. Pull missing models
+
+For each model that is NOT in the tags response, run:
+
+```bash
+ollama pull {model_name}
+```
+
+Wait for the pull to complete before continuing. Report: `"Model {model_name} pulled successfully."` or `"Model {model_name} already available."`
+
+### 2c. Check DB
+
+Write this to `/tmp/tcr_check_db.py` and run it with `python3 /tmp/tcr_check_db.py`:
+
+```python
+import sys, os
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("SELECT 1")
+    conn.close()
+    print("DB_OK")
+except Exception as e:
+    print(f"DB_FAIL: {e}")
+    sys.exit(1)
+```
+
+- If output is `DB_OK`: continue.
+- If output starts with `DB_FAIL`: print `"Datenbank nicht erreichbar. Bitte DATABASE_URL prüfen und DB starten."` and **stop**.
+
+---
+
+## Step 3: Create Project Table
+
+**Goal:** Create the pgvector table for this project (idempotent — safe to re-run).
+
+Write this to `/tmp/tcr_create_table.py` and run it with `python3 /tmp/tcr_create_table.py`:
+
+```python
+import os, sys
+import psycopg2
+
+DATABASE_URL  = os.getenv("DATABASE_URL",   "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+PROJECT_NAME  = os.environ["TCR_PROJECT"]   # passed via env
+
+CREATE_TABLE_SQL = f"""
+CREATE TABLE IF NOT EXISTS {PROJECT_NAME} (
+    id              SERIAL PRIMARY KEY,
+    chunk_id        INT NOT NULL,
+    type            VARCHAR(10) NOT NULL CHECK (type IN ('summary', 'code')),
+    file_path       TEXT NOT NULL,
+    line_start      INT NOT NULL,
+    line_end        INT NOT NULL,
+    content         TEXT NOT NULL,
+    commit_hash     VARCHAR(40) NOT NULL,
+    commit_message  TEXT,
+    embedding_model VARCHAR(100) NOT NULL,
+    embedding       vector(768),
+    indexed_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_embedding_idx
+    ON {PROJECT_NAME} USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_chunk_id_idx
+    ON {PROJECT_NAME} (chunk_id);
+
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_file_path_idx
+    ON {PROJECT_NAME} (file_path);
+"""
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute(CREATE_TABLE_SQL)
+    conn.commit()
+    conn.close()
+    print(f"TABLE_OK: {PROJECT_NAME}")
+except Exception as e:
+    print(f"TABLE_FAIL: {e}")
+    sys.exit(1)
+```
+
+Run it with the project name passed as an environment variable:
+
+```bash
+TCR_PROJECT={project_name} python3 /tmp/tcr_create_table.py
+```
+
+- If output starts with `TABLE_OK`: continue.
+- If output starts with `TABLE_FAIL`: print the error and **stop**.
+
+Report: `"Table '{project_name}' created (or already exists)."`
+
+---
+
+## Step 4: Discover Files
+
+**Goal:** Build the list of files to index using allowlist + blocklist + minimum size filter.
+
+### Allowlist (only these extensions)
+
+`.py`, `.html`, `.sql`, `.js`, `.css`, `.yaml`, `.json`, `.toml`, `.md`, `.sh`
+
+### Blocklist (always skip — path contains any of these)
+
+`venv/`, `__pycache__/`, `.git/`, `node_modules/`, `data/`, `.paul/`, `.env`
+
+Also skip any file matching these patterns:
+- `*.min.css`
+- `*.min.js`
+- `*.pyc`
+- `*.png`, `*.jpg`, `*.pdf`
+- `*.woff`, `*.ttf`, `*.ico`
+
+### Discovery command
+
+Run `find` from the project root to get all candidate files:
+
+```bash
+find . -type f \( \
+  -name "*.py" -o -name "*.html" -o -name "*.sql" \
+  -o -name "*.js" -o -name "*.css" -o -name "*.yaml" \
+  -o -name "*.json" -o -name "*.toml" -o -name "*.md" \
+  -o -name "*.sh" \
+\)
+```
+
+Then filter out blocklist paths and files with fewer than 3 lines using Python:
+
+```python
+BLOCKLIST_DIRS = ["venv/", "__pycache__/", ".git/", "node_modules/", "data/", ".paul/", ".env"]
+BLOCKLIST_SUFFIXES = [".min.css", ".min.js", ".pyc", ".png", ".jpg", ".pdf", ".woff", ".ttf", ".ico"]
+
+def is_blocked(path):
+    for b in BLOCKLIST_DIRS:
+        if b in path:
+            return True
+    for s in BLOCKLIST_SUFFIXES:
+        if path.endswith(s):
+            return True
+    return False
+
+files_to_index = []
+for path in raw_find_output.splitlines():
+    path = path.strip()
+    if not path:
+        continue
+    if is_blocked(path):
+        continue
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        if len(lines) < 3:
+            continue
+        files_to_index.append((path, lines))
+    except Exception:
+        continue
+```
+
+Report: `"Found {len(files_to_index)} files to index."`
+
+---
+
+## Step 5: Chunk Files
+
+**Goal:** Split each file into fixed-size chunks with overlap. Assign a global sequential `chunk_id`.
+
+```python
+CHUNK_SIZE    = int(os.getenv("CHUNK_SIZE", "50"))
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "15"))
+
+chunks = []       # list of dicts
+chunk_id = 0      # global counter, sequential across ALL files
+
+for file_path, lines in files_to_index:
+    start = 0
+    total = len(lines)
+    while start < total:
+        end = min(start + CHUNK_SIZE, total)
+        chunk_lines = lines[start:end]
+        chunk_text  = "".join(chunk_lines)
+        if chunk_text.strip():   # skip empty chunks
+            chunks.append({
+                "chunk_id":   chunk_id,
+                "file_path":  file_path,
+                "line_start": start + 1,        # 1-based
+                "line_end":   end,              # 1-based inclusive
+                "content":    chunk_text,
+            })
+            chunk_id += 1
+        if end == total:
+            break
+        start += CHUNK_SIZE - CHUNK_OVERLAP
+```
+
+Report: `"Created {len(chunks)} chunks from {len(files_to_index)} files."`
+
+---
+
+## Step 6: Generate Summaries + Embeddings — Batch INSERT
+
+**Goal:** For each chunk, generate a summary (devstral), embed both summary and code (embedding model), insert two rows into the DB.
+
+Write this entire script to `/tmp/tcr_index.py` and run it with `python3 /tmp/tcr_index.py`:
+
+```python
+import os, sys, json, time
+import requests
+import psycopg2
+
+DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
+PROJECT_NAME    = os.environ["TCR_PROJECT"]
+HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
+HEAD_MESSAGE    = os.environ.get("TCR_HEAD_MESSAGE", "")
+
+# --- chunks are passed as a JSON file written by the orchestrator ---
+with open("/tmp/tcr_chunks.json", "r") as f:
+    chunks = json.load(f)
+
+INSERT_SQL = f"""
+INSERT INTO {PROJECT_NAME}
+    (chunk_id, type, file_path, line_start, line_end, content,
+     commit_hash, commit_message, embedding_model, embedding)
+VALUES
+    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+def generate_summary(code_text):
+    """Call devstral via Ollama generate API to produce a summary."""
+    prompt = (
+        "You are a code documentation assistant. "
+        "Write a concise 2-3 sentence summary of what the following code does. "
+        "Focus on purpose and behavior, not syntax.\n\n"
+        f"```\n{code_text[:3000]}\n```"
+    )
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/generate",
+        json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.json()["response"].strip()
+
+def get_embedding(text):
+    """Call embedding model via Ollama embed API."""
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/embed",
+        json={"model": EMBEDDING_MODEL, "input": text},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    # Ollama embed returns {"embeddings": [[...]]} (list of lists)
+    return data["embeddings"][0]
+
+conn = psycopg2.connect(DATABASE_URL)
+cur  = conn.cursor()
+
+total = len(chunks)
+for i, chunk in enumerate(chunks):
+    print(f"  [{i+1}/{total}] chunk_id={chunk['chunk_id']} {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}", flush=True)
+
+    # --- Summary ---
+    try:
+        summary_text = generate_summary(chunk["content"])
+    except Exception as e:
+        print(f"    WARN: summary failed: {e} — using fallback")
+        summary_text = f"Code chunk from {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}"
+
+    # --- Embeddings ---
+    try:
+        summary_vec = get_embedding(summary_text)
+    except Exception as e:
+        print(f"    WARN: summary embedding failed: {e} — skipping chunk")
+        continue
+
+    try:
+        code_vec = get_embedding(chunk["content"])
+    except Exception as e:
+        print(f"    WARN: code embedding failed: {e} — skipping chunk")
+        continue
+
+    # --- Insert summary row ---
+    cur.execute(INSERT_SQL, (
+        chunk["chunk_id"], "summary",
+        chunk["file_path"], chunk["line_start"], chunk["line_end"],
+        summary_text,
+        HEAD_HASH, HEAD_MESSAGE, EMBEDDING_MODEL,
+        summary_vec,
+    ))
+
+    # --- Insert code row ---
+    cur.execute(INSERT_SQL, (
+        chunk["chunk_id"], "code",
+        chunk["file_path"], chunk["line_start"], chunk["line_end"],
+        chunk["content"],
+        HEAD_HASH, HEAD_MESSAGE, EMBEDDING_MODEL,
+        code_vec,
+    ))
+
+    # Commit every 10 chunks to avoid long transactions
+    if (i + 1) % 10 == 0:
+        conn.commit()
+
+conn.commit()
+cur.close()
+conn.close()
+print(f"INDEX_OK: {total} chunks processed")
+```
+
+**Before running** the script, you must:
+
+1. Serialize the chunks list to JSON and write it to `/tmp/tcr_chunks.json`:
+
+```python
+import json
+with open("/tmp/tcr_chunks.json", "w") as f:
+    json.dump(chunks, f)
+```
+
+2. Run the script with all required env vars:
+
+```bash
+TCR_PROJECT="{project_name}" \
+TCR_HEAD_HASH="{HEAD_HASH}" \
+TCR_HEAD_MESSAGE="{HEAD_MESSAGE}" \
+python3 /tmp/tcr_index.py
+```
+
+- Watch for `INDEX_OK` at the end to confirm success.
+- If the script exits with a non-zero code: print the error output and **stop**.
+
+Report: `"Indexed {len(chunks)} chunks ({len(chunks)*2} rows inserted)."`
+
+---
+
+## Step 7: Update _index_meta
+
+**Goal:** Record the HEAD commit hash, chunk count, and embedding model in `_index_meta`.
+
+Write this to `/tmp/tcr_update_meta.py` and run it with `python3 /tmp/tcr_update_meta.py`:
+
+```python
+import os, sys
+import psycopg2
+
+DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+PROJECT_NAME    = os.environ["TCR_PROJECT"]
+HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
+CHUNK_COUNT     = int(os.environ["TCR_CHUNK_COUNT"])
+
+UPSERT_SQL = """
+INSERT INTO _index_meta (project, last_commit_hash, last_indexed_at, chunk_count, embedding_model)
+VALUES (%s, %s, NOW(), %s, %s)
+ON CONFLICT (project) DO UPDATE SET
+    last_commit_hash = EXCLUDED.last_commit_hash,
+    last_indexed_at  = NOW(),
+    chunk_count      = EXCLUDED.chunk_count,
+    embedding_model  = EXCLUDED.embedding_model
+"""
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cur  = conn.cursor()
+    cur.execute(UPSERT_SQL, (PROJECT_NAME, HEAD_HASH, CHUNK_COUNT, EMBEDDING_MODEL))
+    conn.commit()
+    conn.close()
+    print("META_OK")
+except Exception as e:
+    print(f"META_FAIL: {e}")
+    sys.exit(1)
+```
+
+Run it with:
+
+```bash
+TCR_PROJECT="{project_name}" \
+TCR_HEAD_HASH="{HEAD_HASH}" \
+TCR_CHUNK_COUNT="{len(chunks)}" \
+python3 /tmp/tcr_update_meta.py
+```
+
+- If output is `META_OK`: continue.
+- If output starts with `META_FAIL`: print the error and **stop**.
+
+Report: `"_index_meta updated for project '{project_name}'."`
+
+---
+
+## Step 8: Report
+
+**Goal:** Print a final summary to the user.
+
+Print the following (in German — user-facing text):
+
+```
+Indexierung abgeschlossen!
+
+Projekt:          {project_name}
+Tabelle:          {project_name}
+Commit:           {HEAD_HASH[:8]} — {HEAD_MESSAGE}
+Dateien:          {len(files_to_index)}
+Chunks:           {len(chunks)}
+Zeilen in DB:     {len(chunks) * 2}  (summary + code je Chunk)
+Embedding-Modell: {EMBEDDING_MODEL}
+Summary-Modell:   {SUMMARY_MODEL}
+
+Jetzt kannst du /code-search verwenden um deinen Code semantisch zu durchsuchen.
+```
+
+---
+
+## Error Handling
+
+### If any step fails, stop immediately
+
+Do not continue to the next step if a critical error occurred. Print the error clearly and explain which step failed.
+
+### Ollama timeout
+
+- Summary generation (`devstral:24b`) can take 30–120 seconds per chunk on slower hardware.
+- If a summary call times out after 120 seconds: use the fallback summary `"Code chunk from {file_path} lines {line_start}-{line_end}"` and continue.
+- If an embedding call fails: skip that chunk entirely, log a warning, continue with the next chunk.
+
+### DB connection failure
+
+- If psycopg2 cannot connect: check that `DATABASE_URL` is correct and the PostgreSQL container is running.
+- For the pgvector Docker setup from this project: `docker compose up -d` in the project root.
+
+### Model not available
+
+- If `ollama pull` fails (no internet, wrong model name): print `"Modell {model_name} konnte nicht geladen werden. Bitte manuell ausführen: ollama pull {model_name}"` and **stop**.
+
+### Re-indexing an existing project
+
+- Step 3 uses `CREATE TABLE IF NOT EXISTS` — safe to re-run.
+- The INSERT in Step 6 appends new rows. If you want a full re-index (wipe and rebuild), run `DELETE FROM {project_name}` before Step 6. The skill does NOT auto-delete — use `/code-update` for incremental updates.
+
+### Embedding dimension mismatch
+
+- The schema uses `vector(768)` which matches `nomic-embed-text` output (768 dimensions).
+- If you change `EMBEDDING_MODEL` to a model with different dimensions (e.g., 1024), you must drop and recreate the table: `DROP TABLE {project_name}` then re-run `/code-onboard`.
+- The `embedding_model` column in `_index_meta` lets you detect this situation.
