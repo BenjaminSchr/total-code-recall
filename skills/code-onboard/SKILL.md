@@ -401,6 +401,11 @@ def get_embedding(text):
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
 
+# Clear existing data for idempotent re-onboard
+cur.execute(f"DELETE FROM {PROJECT_NAME}")
+conn.commit()
+print(f"CLEARED: Removed existing data from {PROJECT_NAME}")
+
 total = len(chunks)
 for i, chunk in enumerate(chunks):
     print(f"  [{i+1}/{total}] chunk_id={chunk['chunk_id']} {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}", flush=True)
