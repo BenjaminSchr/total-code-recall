@@ -844,6 +844,10 @@ def get_embedding(text):
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
 
+# Idempotency: clear existing summaries before regenerating
+cur.execute(f"DELETE FROM {PROJECT_NAME}_summaries")
+conn.commit()
+
 # Get all distinct file paths that have chunk summaries
 cur.execute(f"SELECT DISTINCT file_path FROM {PROJECT_NAME} WHERE type = 'summary'")
 file_paths = [row[0] for row in cur.fetchall()]
