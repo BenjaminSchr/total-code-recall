@@ -28,6 +28,16 @@
       "name": "tcr-explain",
       "path": "skills/tcr-explain/SKILL.md",
       "description": "Hybrid code search with entity graph and hierarchical summaries"
+    },
+    {
+      "name": "tcr-config",
+      "path": "skills/tcr-config/SKILL.md",
+      "description": "Configure providers: LLM (Ollama/OpenRouter), Embedding (Ollama/OpenRouter), DB (local/Supabase)"
+    },
+    {
+      "name": "tcr-info",
+      "path": "skills/tcr-info/SKILL.md",
+      "description": "Show current config, indexed projects, and command reference"
     }
   ]
 }
