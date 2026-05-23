@@ -155,3 +155,12 @@
   - BUG-002 (LOW): STATE.md not updated — fixed
   - BUG-003 (LOW): test count doc mismatch — updated STATE.md counts
 - Wave Fix: committed directly on wave/W14-test-suite
+- Merged wave/W14-test-suite → dev, tagged W14_done
+
+### Final UNIFY — V2 COMPLETE (2026-05-23)
+- Full pytest: 17 passed, 13 skipped, 0 errors
+- SUMMARY.md written: plan vs actual, architecture, recurring issues, accepted risks
+- STATE.md: V2 COMPLETE, all tasks DONE
+- LOG.md: closed
+- Plugin version: 0.2.0 — 7 skills, 3-provider matrix (LLM/Embedding/DB), full test suite
+- All waves W8–W14 merged to dev: W8_done W9_done W10_done W11_done W12_done W13_done W14_done

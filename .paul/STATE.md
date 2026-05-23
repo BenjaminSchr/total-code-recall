@@ -1,6 +1,6 @@
 # STATE — total-code-recall
 
-## Current Phase: V2 — Wave 14 IN PROGRESS (Test Suite)
+## Current Phase: V2 COMPLETE ✓
 
 ## V1 Tasks — All DONE
 
@@ -77,13 +77,22 @@
 | W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | DONE |
 | W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | DONE |
 
-### Wave 13 — Supabase ✓ DONE (pending merge)
+### Wave 13 — Supabase ✓ DONE
 | W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | DONE |
 | W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | DONE |
 | W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | DONE |
 
-### Wave 14 — Test Suite ✓ DONE (pending merge)
+### Wave 14 — Test Suite ✓ DONE
 | W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (10 tests) | DONE |
 | W14-T2 | Create tests/test_config.py — config loader priority (7 tests) | DONE |
 | W14-T3 | Create tests/test_db.py — schema/entity/vector/summary (8 tests) | DONE |
 | W14-T4 | Create tests/test_e2e.py — onboard → search → verify (5 tests) | DONE |
+
+---
+
+## Final UNIFY — V2 COMPLETE
+- All 21 tasks across Waves W8–W14: DONE
+- Plugin version: 0.2.0
+- 7 skills registered in plugin.json
+- Test suite: 17 passed, 13 skipped, 0 errors
+- Tags: W8_done W9_done W10_done W11_done W12_done W13_done W14_done
