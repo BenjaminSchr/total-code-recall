@@ -1,5 +1,5 @@
 **Task:** TASK_W8-T3 — Update README.md — all /code-* references → /tcr-*
-**Status:** TODO
+**Status:** DONE
 
 **File:** README.md
 **Branch:** task/W8-T3-update-readme-references
@@ -49,3 +49,14 @@ No `code-*` command references remain in README.md.
 You must not use GLM or the local Ollama LLM — you can start right away.
 
 Read `.paul/tasks/TASK_W8-T3.md`. Read `README.md`. Replace all `/code-*` and bare `code-*` command references with `tcr-*` equivalents. Run the verify grep — it must print PASS with zero matches. Write Execution Log, rename task file to `DONE_TASK_W8-T3.md`, commit: `feat: TASK_W8-T3 — update README.md command references to tcr-*`.
+
+---
+
+## Execution Log
+
+### Attempt 1
+- Date: 2026-05-23
+- Result: Replaced all /code-* and bare code-* command references in README.md with tcr-* equivalents. Verified zero remaining code-* command refs (PASS). 29 tcr-* references confirmed.
+- Files Changed: README.md
+- Issues: none
+- Status: DONE

@@ -1,13 +1,15 @@
 ---
-name: code-search
-description: Semantically search an indexed Git project. Embeds the user query via Ollama, runs a vector similarity search with dedup against the pgvector table, and returns the top 10 most relevant code chunks with file, lines, type, score, and full content.
+name: tcr-explain
+description: Hybrid code search combining vector similarity, entity graph traversal, and hierarchical file summaries. Returns enriched results with entity context, callers/callees, and file-level summaries alongside matching code chunks.
 ---
 
-# /code-search — Skill Instructions
+# /tcr-explain — Skill Instructions
 
-You are executing the **code-search** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-explain** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
 
-Usage: `/code-search <query>`
+Usage: `/tcr-explain <query>`
+
+Example: `/tcr-explain "how does the authentication middleware work"`
 
 ---
 
@@ -78,11 +80,11 @@ Report: `"Project name: {project_name}"`
 
 ---
 
-## Step 2: Check Index Exists
+## Step 2: Check Tables Exist
 
-**Goal:** Confirm the project has been indexed and the embedding model matches.
+**Goal:** Confirm the project has been indexed and all required tables exist (index meta, entities, summaries).
 
-Write this to `/tmp/tcr_check_search_meta.py` and run it with `python3 /tmp/tcr_check_search_meta.py`:
+Write this to `/tmp/tcr_check_explain_meta.py` and run it with `python3 /tmp/tcr_check_explain_meta.py`:
 
 ```python
 import os, sys
@@ -106,13 +108,13 @@ PROJECT_NAME    = os.environ["TCR_PROJECT"]
 try:
     conn = psycopg2.connect(DATABASE_URL)
     cur  = conn.cursor()
+
+    # Check index meta
     cur.execute(
         "SELECT chunk_count, embedding_model FROM _index_meta WHERE project = %s",
         (PROJECT_NAME,)
     )
     row = cur.fetchone()
-    conn.close()
-
     if row is None:
         print("NOT_INDEXED")
         sys.exit(1)
@@ -122,28 +124,49 @@ try:
         print(f"MODEL_MISMATCH:{indexed_model}")
         sys.exit(2)
 
+    # Check entities table
+    cur.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = %s",
+        (f"{PROJECT_NAME}_entities",)
+    )
+    if cur.fetchone()[0] == 0:
+        print("NO_ENTITIES")
+        sys.exit(3)
+
+    # Check summaries table
+    cur.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = %s",
+        (f"{PROJECT_NAME}_summaries",)
+    )
+    if cur.fetchone()[0] == 0:
+        print("NO_SUMMARIES")
+        sys.exit(4)
+
+    conn.close()
     print(f"META_OK:{chunk_count}")
 except Exception as e:
     print(f"DB_FAIL: {e}")
-    sys.exit(3)
+    sys.exit(5)
 ```
 
 Run it with:
 
 ```bash
-TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_search_meta.py
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_explain_meta.py
 ```
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /code-onboard again."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /tcr-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /tcr-onboard again."` and **stop**.
+- `NO_ENTITIES` — print `"Entities table not found for '{project_name}'. Please run /tcr-onboard to index entities."` and **stop**.
+- `NO_SUMMARIES` — print `"Summaries table not found for '{project_name}'. Please run /tcr-onboard to generate summaries."` and **stop**.
 - `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{chunk_count}` — extract `chunk_count` and continue.
 
 Store: `chunk_count`.
 
-Report: `"Index OK: {chunk_count} chunks in '{project_name}'."`
+Report: `"Index OK: {chunk_count} chunks, entities and summaries confirmed for '{project_name}'."`
 
 ---
 
@@ -151,7 +174,7 @@ Report: `"Index OK: {chunk_count} chunks in '{project_name}'."`
 
 **Goal:** Convert the user's query text into a vector embedding using the same model as the index.
 
-The query text is whatever the user typed after `/code-search`. For example, if the user typed `/code-search "Datumsfilter"`, the query text is `Datumsfilter`.
+The query text is whatever the user typed after `/tcr-explain`.
 
 Write this to `/tmp/tcr_embed_query.py` and run it with `python3 /tmp/tcr_embed_query.py`:
 
@@ -196,7 +219,7 @@ Run it with:
 TCR_QUERY="{query_text}" python3 /tmp/tcr_embed_query.py > /tmp/tcr_query_vec.json
 ```
 
-- If the script exits with a non-zero code: print `"Embedding error: {error}. Please make sure Ollama is running and {EMBEDDING_MODEL} is available."` and **stop**.
+- If the script exits with a non-zero code: print `"Embedding error. Please make sure Ollama is running and {EMBEDDING_MODEL} is available."` and **stop**.
 - If it succeeds: read the vector from `/tmp/tcr_query_vec.json`.
 
 ```python
@@ -217,14 +240,15 @@ Report: `"Query embedded: {len(query_vec)}-dimensional vector."`
 
 ---
 
-## Step 4: Search
+## Step 4: Hybrid Search
 
-**Goal:** Run a vector similarity search against the project table, deduplicating by `chunk_id` so each chunk appears at most once.
+**Goal:** Run vector search, expand each result with entity context and callers/callees, enrich with file summaries, then return top 10.
 
-Write this to `/tmp/tcr_search.py` and run it with `python3 /tmp/tcr_search.py`:
+Write this to `/tmp/tcr_explain.py` and run it with `python3 /tmp/tcr_explain.py`:
 
 ```python
 import os, sys, json
+
 # Load .env file if present
 _env_path = os.path.join(os.getcwd(), ".env")
 if not os.path.exists(_env_path):
@@ -246,7 +270,8 @@ with open("/tmp/tcr_query_vec.json", "r") as f:
 
 vec_str = "[" + ",".join(str(x) for x in query_vec) + "]"
 
-SEARCH_SQL = f"""
+# ── Vector pass: top 20 chunks ─────────────────────────────────────────────
+VECTOR_SQL = f"""
 SELECT * FROM (
     SELECT DISTINCT ON (chunk_id)
         chunk_id, type, file_path, line_start, line_end, content, commit_hash,
@@ -255,57 +280,135 @@ SELECT * FROM (
     ORDER BY chunk_id, 1 - (embedding <=> %s::vector) DESC
 ) sub
 ORDER BY similarity DESC
-LIMIT 10
+LIMIT 20
 """
 
 try:
     conn = psycopg2.connect(DATABASE_URL)
     cur  = conn.cursor()
-    cur.execute(SEARCH_SQL, (vec_str, vec_str))
+
+    cur.execute(VECTOR_SQL, (vec_str, vec_str))
     columns = [d[0] for d in cur.description]
-    rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+    top_chunks = [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    enriched = []
+
+    for chunk in top_chunks:
+        result = {
+            "chunk_id":   chunk["chunk_id"],
+            "type":       chunk["type"],
+            "file_path":  chunk["file_path"],
+            "line_start": chunk["line_start"],
+            "line_end":   chunk["line_end"],
+            "content":    chunk["content"],
+            "similarity": float(chunk["similarity"]),
+            "entities":   [],
+            "callers":    [],
+            "callees":    [],
+            "file_summary": None,
+        }
+
+        # ── Graph expansion: find entities whose line range overlaps this chunk ──
+        cur.execute(f"""
+            SELECT id, type, name
+            FROM {PROJECT_NAME}_entities
+            WHERE file_path = %s AND line_start <= %s AND line_end >= %s
+        """, (chunk["file_path"], chunk["line_end"], chunk["line_start"]))
+        entity_rows = cur.fetchall()
+
+        for ent_id, ent_type, ent_name in entity_rows:
+            result["entities"].append({"type": ent_type, "name": ent_name})
+
+            # ── 1-hop callers and callees via UNION ───────────────────────────
+            cur.execute(f"""
+                SELECT e2.name, e2.type, r.type as rel_type
+                FROM {PROJECT_NAME}_relations r
+                JOIN {PROJECT_NAME}_entities e2 ON e2.id = r.to_id
+                WHERE r.from_id = %s AND r.type = 'calls'
+                UNION
+                SELECT e2.name, e2.type, 'called_by' as rel_type
+                FROM {PROJECT_NAME}_relations r
+                JOIN {PROJECT_NAME}_entities e2 ON e2.id = r.from_id
+                WHERE r.to_id = %s AND r.type = 'calls'
+            """, (ent_id, ent_id))
+
+            for rel_name, rel_type, rel_kind in cur.fetchall():
+                entry = {"name": rel_name, "type": rel_type}
+                if rel_kind == "called_by":
+                    if entry not in result["callers"]:
+                        result["callers"].append(entry)
+                else:
+                    if entry not in result["callees"]:
+                        result["callees"].append(entry)
+
+        # ── Summary enrichment: file-level summary ───────────────────────────
+        cur.execute(f"""
+            SELECT content FROM {PROJECT_NAME}_summaries
+            WHERE level = 'file' AND scope = %s
+            LIMIT 1
+        """, (chunk["file_path"],))
+        summary_row = cur.fetchone()
+        if summary_row:
+            result["file_summary"] = summary_row[0]
+
+        enriched.append(result)
+
     conn.close()
 
-    with open("/tmp/tcr_results.json", "w") as f:
-        # similarity is a Decimal from psycopg2 — convert to float for JSON
-        for row in rows:
-            row["similarity"] = float(row["similarity"])
-        json.dump(rows, f)
+    # Deduplicate by chunk_id (keep highest similarity)
+    seen = {}
+    for item in enriched:
+        cid = item["chunk_id"]
+        if cid not in seen or item["similarity"] > seen[cid]["similarity"]:
+            seen[cid] = item
 
-    print(f"SEARCH_OK:{len(rows)}")
+    # Re-rank with weighted score: 0.6 vector + 0.2 graph + 0.2 summary
+    for item in seen.values():
+        vector_score = item["similarity"]
+        graph_score = 1.0 if (item.get("callers") or item.get("callees")) else 0.0
+        summary_score = 1.0 if item.get("file_summary") else 0.0
+        item["final_score"] = 0.6 * vector_score + 0.2 * graph_score + 0.2 * summary_score
+
+    final = sorted(seen.values(), key=lambda x: x["final_score"], reverse=True)[:10]
+
+    with open("/tmp/tcr_explain_results.json", "w") as f:
+        json.dump(final, f)
+
+    print(f"EXPLAIN_OK:{len(final)}")
+
 except Exception as e:
-    print(f"SEARCH_FAIL: {e}")
+    print(f"EXPLAIN_FAIL: {e}")
     sys.exit(1)
 ```
 
 Run it with:
 
 ```bash
-TCR_PROJECT="{project_name}" python3 /tmp/tcr_search.py
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_explain.py
 ```
 
 Parse the output:
 
-- `SEARCH_OK:{n}` — extract result count and continue.
-- `SEARCH_FAIL: ...` — print the error and **stop**.
+- `EXPLAIN_OK:{n}` — extract result count and continue.
+- `EXPLAIN_FAIL: ...` — print the error and **stop**.
 
 Read the results:
 
 ```python
 import json
-with open("/tmp/tcr_results.json", "r") as f:
+with open("/tmp/tcr_explain_results.json", "r") as f:
     results = json.load(f)
 ```
 
 Store: `results`.
 
-Report: `"Search complete: {len(results)} results found."`
+Report: `"Hybrid search complete: {len(results)} enriched results found."`
 
 ---
 
 ## Step 5: Format Results
 
-**Goal:** Display the search results clearly so the agent can read and act on the matching code chunks.
+**Goal:** Display the enriched results clearly, showing entity context, callers/callees, file summary, and code content.
 
 If `results` is empty: print the following and stop (this is not an error):
 
@@ -321,36 +424,64 @@ Possible reasons:
 If results are found, print the following header:
 
 ```
-Search results for: "{query_text}"
+Explain results for: "{query_text}"
 Project: {project_name}
-Found: {len(results)} results
+Found: {len(results)} enriched results
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Then for each result, print:
+Then for each result, print the following format:
 
 ```
-[{rank}] {file_path}  Lines {line_start}–{line_end}  Type: {type}  Score: {similarity:.4f}
+━━━ Match {rank} (Score: {final_score:.4f}) ━━━
+File: {file_path}  Lines: {line_start}–{line_end}  Type: {type}
+```
+
+If `entities` is non-empty, print (one entity per line):
+
+```
+Entity: {entity_type} {entity_name}
+```
+
+If `callers` is non-empty, print the list on one line:
+
+```
+Callers: {caller_name_1}, {caller_name_2}, ...
+```
+
+If `callees` is non-empty, print the list on one line:
+
+```
+Callees: {callee_name_1}, {callee_name_2}, ...
+```
+
+If `file_summary` is not None, print (truncated to 200 chars if longer):
+
+```
+File Summary: {file_summary_truncated}
+```
+
+Then print the code content with a separator:
+
+```
 ─────────────────────────────────────────────────
 {content}
 
 ```
 
-Where:
-- `{rank}` is the 1-based result number (1 = most similar)
-- `{file_path}` is the relative path from the project root
-- `{line_start}` and `{line_end}` are 1-based line numbers
-- `{type}` is either `summary` (AI-generated description) or `code` (raw source)
-- `{similarity:.4f}` is the cosine similarity score, formatted to 4 decimal places (1.0 = perfect match)
-- `{content}` is the full chunk text (do not truncate)
-
 After the last result, print:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tip: Type "summary" = AI-generated description of the chunk. Type "code" = raw source.
-Both types can reference the same chunk_id — the score determines which type is a better match.
+Tip: Use /tcr-overview <symbol_name> to explore the full call graph for any entity shown above.
 ```
+
+Where:
+- `{rank}` is the 1-based result number (1 = highest similarity)
+- `{final_score:.4f}` is the weighted score (0.6*vector + 0.2*graph + 0.2*summary)
+- `{type}` is `summary` (AI description) or `code` (raw source)
+- `{content}` is the full chunk text (do not truncate)
+- Entity, Callers, Callees, and File Summary lines are omitted entirely when their data is empty
 
 ---
 
@@ -368,16 +499,21 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Embedding model mismatch
 
 - If Step 2 returns `MODEL_MISMATCH`: the index was built with a different model. Searching with a different model produces meaningless results because the vector spaces are incompatible.
-- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/code-onboard` to rebuild the index with the new model.
+- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/tcr-onboard` to rebuild the index with the new model.
 
 ### DB connection failure
 
 - If psycopg2 cannot connect: check that `DATABASE_URL` is correct and the PostgreSQL container is running.
 - For the pgvector Docker setup from this project: `docker compose up -d` in the project root.
 
+### Missing tables
+
+- If Step 2 returns `NO_ENTITIES` or `NO_SUMMARIES`: the entity or summary tables have not been populated.
+- Run `/tcr-onboard` to index entities and generate summaries before using `/tcr-explain`.
+
 ### Project not indexed
 
-- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/code-onboard` first to build the index before searching.
+- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/tcr-onboard` first to build the index before searching.
 
 ### Empty results
 

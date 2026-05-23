@@ -1,5 +1,5 @@
 **Task:** TASK_W8-T2 — Update all SKILL.md frontmatter names code-* → tcr-*
-**Status:** TODO
+**Status:** DONE
 
 **File:** skills/tcr-onboard/SKILL.md, skills/tcr-update/SKILL.md, skills/tcr-search/SKILL.md, skills/tcr-overview/SKILL.md, skills/tcr-explain/SKILL.md
 **Branch:** task/W8-T2-update-skillmd-names
@@ -70,3 +70,14 @@ No `name: code-*` in any SKILL.md frontmatter. No `"code-*"` name entries in plu
 You must not use GLM or the local Ollama LLM — you can start right away.
 
 Read `.paul/tasks/TASK_W8-T2.md`. Read each of the five SKILL.md files. Update the `name:` frontmatter and all internal `/code-*` usage references to `tcr-*`. Also update the five `name` fields in `plugin.json`. Run verify. Write Execution Log, rename task file to `DONE_TASK_W8-T2.md`, commit: `feat: TASK_W8-T2 — update SKILL.md frontmatter names and plugin.json name fields to tcr-*`.
+
+---
+
+## Execution Log
+
+### Attempt 1
+- Date: 2026-05-23
+- Result: Updated frontmatter `name:` fields in all 5 SKILL.md files (code-* → tcr-*). Updated all internal command references in body text (/code-* → /tcr-*). Updated plugin.json name fields for all 5 skills.
+- Files Changed: skills/tcr-onboard/SKILL.md, skills/tcr-update/SKILL.md, skills/tcr-search/SKILL.md, skills/tcr-overview/SKILL.md, skills/tcr-explain/SKILL.md, plugin.json
+- Issues: none
+- Status: DONE

@@ -1,5 +1,5 @@
 **Task:** TASK_W8-T1 — Rename skill directories code-* → tcr-*, update plugin.json paths
-**Status:** TODO
+**Status:** DONE
 
 **File:** skills/ (directory renames), plugin.json
 **Branch:** task/W8-T1-rename-skill-dirs
@@ -55,3 +55,14 @@ All five `tcr-*` directories exist, no `code-*` directories remain, and plugin.j
 You must not use GLM or the local Ollama LLM — you can start right away.
 
 Read `.paul/tasks/TASK_W8-T1.md`. Run the five `mv` commands to rename the skill directories. Then read and edit `plugin.json` — update only the five `path` fields (leave `name` fields unchanged for now). Run the verify command to confirm. Write Execution Log, rename task file to `DONE_TASK_W8-T1.md`, commit: `feat: TASK_W8-T1 — rename skill dirs code-* to tcr-*, update plugin.json paths`.
+
+---
+
+## Execution Log
+
+### Attempt 1
+- Date: 2026-05-23
+- Result: Renamed all 5 skill directories from `code-*` to `tcr-*` using mv. Updated all 5 `path` fields in plugin.json to reference `tcr-*/SKILL.md`. `name` fields left unchanged per spec. All verify checks passed.
+- Files Changed: skills/tcr-onboard/ (renamed from code-onboard), skills/tcr-update/ (renamed from code-update), skills/tcr-search/ (renamed from code-search), skills/tcr-overview/ (renamed from code-overview), skills/tcr-explain/ (renamed from code-explain), plugin.json
+- Issues: none
+- Status: DONE

@@ -1,11 +1,11 @@
 ---
-name: code-onboard
+name: tcr-onboard
 description: Index a Git project into pgvector for semantic code search. Discovers files, chunks them, generates summaries via devstral, embeds both summary and code via nomic-embed-text, bulk-inserts into PostgreSQL.
 ---
 
-# /code-onboard — Skill Instructions
+# /tcr-onboard — Skill Instructions
 
-You are executing the **code-onboard** skill. Follow these 9 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-onboard** skill. Follow these 9 steps in order. Do not skip any step. At each step, report what you are doing.
 
 ---
 
@@ -1058,7 +1058,7 @@ Rows in DB:       {len(chunks) * 2}  (summary + code per chunk)
 Embedding model:  {EMBEDDING_MODEL}
 Summary model:    {SUMMARY_MODEL}
 
-You can now use /code-search to semantically search your code.
+You can now use /tcr-search to semantically search your code.
 ```
 
 ---
@@ -1087,10 +1087,10 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Re-indexing an existing project
 
 - Step 3 uses `CREATE TABLE IF NOT EXISTS` — safe to re-run.
-- Re-running `/code-onboard` on an already-indexed project will auto-delete existing data before re-indexing. This is safe and idempotent. Use `/code-update` for incremental updates instead.
+- Re-running `/tcr-onboard` on an already-indexed project will auto-delete existing data before re-indexing. This is safe and idempotent. Use `/tcr-update` for incremental updates instead.
 
 ### Embedding dimension mismatch
 
 - The schema uses `vector(768)` which matches `nomic-embed-text` output (768 dimensions).
-- If you change `EMBEDDING_MODEL` to a model with different dimensions (e.g., 1024), you must drop and recreate the table: `DROP TABLE {project_name}` then re-run `/code-onboard`.
+- If you change `EMBEDDING_MODEL` to a model with different dimensions (e.g., 1024), you must drop and recreate the table: `DROP TABLE {project_name}` then re-run `/tcr-onboard`.
 - The `embedding_model` column in `_index_meta` lets you detect this situation.
