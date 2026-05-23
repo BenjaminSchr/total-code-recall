@@ -18,6 +18,11 @@
       "name": "code-search",
       "path": "skills/code-search/SKILL.md",
       "description": "Semantic search over indexed codebase"
+    },
+    {
+      "name": "code-overview",
+      "path": "skills/code-overview/SKILL.md",
+      "description": "Structural overview of indexed codebase via entity/relation graph"
     }
   ]
 }
