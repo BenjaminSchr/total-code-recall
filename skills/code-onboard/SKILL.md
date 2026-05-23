@@ -356,11 +356,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
-HEAD_MESSAGE    = os.environ.get("TCR_HEAD_MESSAGE", "")
 
-# --- chunks are passed as a JSON file written by the orchestrator ---
+# --- chunks and meta are passed via JSON file to avoid shell injection ---
 with open("/tmp/tcr_chunks.json", "r") as f:
-    chunks = json.load(f)
+    data = json.load(f)
+HEAD_MESSAGE = data["meta"]["head_message"]
+chunks = data["chunks"]
 
 INSERT_SQL = f"""
 INSERT INTO {PROJECT_NAME}
@@ -469,7 +470,7 @@ print(f"INDEX_OK: {total} chunks processed")
 ```python
 import json
 with open("/tmp/tcr_chunks.json", "w") as f:
-    json.dump(chunks, f)
+    json.dump({"meta": {"head_message": HEAD_MESSAGE}, "chunks": chunks}, f)
 ```
 
 2. Run the script with all required env vars:
@@ -477,7 +478,6 @@ with open("/tmp/tcr_chunks.json", "w") as f:
 ```bash
 TCR_PROJECT="{project_name}" \
 TCR_HEAD_HASH="{HEAD_HASH}" \
-TCR_HEAD_MESSAGE="{HEAD_MESSAGE}" \
 python3 /tmp/tcr_index.py
 ```
 
