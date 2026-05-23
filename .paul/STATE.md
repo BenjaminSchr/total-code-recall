@@ -46,5 +46,5 @@
 | W6-T3 | Module + repo summaries | DONE |
 
 ### Wave 7 — Phase 3: Hybrid Query
-| W7-T1 | code-explain skill | TODO |
-| W7-T2 | Update consolidation + README | TODO |
+| W7-T1 | code-explain skill | DONE |
+| W7-T2 | Update consolidation + README | DONE |

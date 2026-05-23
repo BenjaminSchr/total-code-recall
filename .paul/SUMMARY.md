@@ -1,61 +1,73 @@
-# SUMMARY — total-code-recall V1
+# SUMMARY — total-code-recall Relational Layer
 
-## Final UNIFY
+## Final UNIFY — feature/relational-layer
 
 ### Waves Completed
 
-| Wave | Tasks | Purpose | Status |
-|------|-------|---------|--------|
-| W1 | T1-T4 | Plugin scaffold (plugin.json, .env, .gitignore, setup_db.sql, docker-compose) | ✅ |
-| W2 | T1-T3 | Core skills (code-onboard, code-update, code-search) | ✅ |
-| W2.5 | T1-T2 | Bugfix: German→English output, .env loading | ✅ |
-| W2.6 | T1-T5 | Critical bugfixes: path mismatch, vector type, requirements, rerun dedup, shell injection | ✅ |
-| W3 | T1 | README + FAQ | ✅ |
+| Wave | Tasks | Purpose | Opus Review | Bugs Fixed |
+|------|-------|---------|-------------|------------|
+| W5 | T1-T4 | AST Layer (entities, relations, tree-sitter, code-overview) | FAIL→FIX | 3 (full DELETE, name collision, CTE filter) |
+| W6 | T1-T3 | Hierarchical Summaries (file, module, repo) | PASS | 0 (+1 idempotency guard) |
+| W7 | T1-T2 | Hybrid Query (code-explain, README update) | FAIL→FIX | 3 (re-ranking, README count, summary claim) |
 
-### Files Delivered
+### New Files
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `plugin.json` | 23 | Plugin manifest, 3 skills registered |
-| `.env.example` | 13 | 6 config vars with defaults |
-| `.gitignore` | 11 | Dev artifact exclusions |
-| `requirements.txt` | 2 | psycopg2-binary, requests |
-| `docker-compose.yaml` | 17 | pgvector container for external users |
-| `scripts/setup_db.sql` | 53 | Extension + _index_meta + table templates |
-| `skills/code-onboard/SKILL.md` | ~620 | 8-step onboard pipeline |
-| `skills/code-update/SKILL.md` | ~650 | 7-step incremental update |
-| `skills/code-search/SKILL.md` | ~410 | 5-step semantic search |
-| `README.md` | 270 | Setup, usage, FAQ |
-| `LICENSE` | — | MIT |
+| `skills/code-overview/SKILL.md` | ~444 | Structural overview via entity/relation graph |
+| `skills/code-explain/SKILL.md` | ~526 | Hybrid search: vector + graph + summaries |
 
-### Bugs Fixed
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `skills/code-onboard/SKILL.md` | +entity/relation tables, +AST parsing step, +summaries table, +file/module/repo summary generation |
+| `skills/code-update/SKILL.md` | +entity DELETE cascade, +AST re-parse, +summary rebuild |
+| `scripts/setup_db.sql` | +entity, relation, summaries table templates |
+| `plugin.json` | 3→5 skills (added code-overview, code-explain) |
+| `README.md` | +code-overview/code-explain docs, +tree-sitter prereq, +architecture update |
+
+### New DB Tables (per project)
+
+| Table | Purpose |
+|-------|---------|
+| `{project}_entities` | Code elements: files, classes, functions, methods, imports |
+| `{project}_relations` | Relationships: calls, imports, extends, references, contains |
+| `{project}_summaries` | Hierarchical summaries: file, module, repo level |
+
+### Bugs Found & Fixed
 
 | Bug | Severity | Fix |
 |-----|----------|-----|
-| Path mismatch (find vs git) | CRITICAL | Strip `./` from find output |
-| Vector INSERT type error | CRITICAL | String conversion + `::vector` cast |
-| Missing requirements.txt | HIGH | Created with dependencies |
-| Onboard re-run duplication | HIGH | DELETE before INSERT |
-| Shell injection in commit msg | HIGH | Pass via JSON instead of shell env |
-| German output strings | MEDIUM | Translated to English |
-| .env not auto-loaded | MEDIUM | Inline .env loader in all temp scripts |
+| Update AST full DELETE wiped unchanged entities | CRITICAL | Removed — Step 4 handles selective deletion |
+| name_to_id collision on duplicate names | HIGH | Qualified keys: file_path::name |
+| CTE traversed all relation types | MEDIUM | Filtered to `r.type = 'calls'` |
+| Summaries not idempotent on re-run | MEDIUM | Added DELETE before regeneration |
+| code-explain no re-ranking | HIGH | Added weighted score: 0.6*vector + 0.2*graph + 0.2*summary |
+| README "Three commands" | MEDIUM | Changed to "Five commands" |
+| README claims module/repo in explain | MEDIUM | Corrected to "file summary context" |
 
-### Architecture
+### Architecture (final)
 
 ```
-Git Project → File Discovery (allowlist/blocklist)
-    → Fixed-Size Chunks (50 lines, 15 overlap)
-    → Summary (devstral:24b via Ollama)
-    → Embeddings (nomic-embed-text via Ollama)
-    → 2 rows per chunk (summary + code) in pgvector
-    → Semantic Search (DISTINCT ON dedup, top 10)
+code-onboard pipeline:
+  File Discovery → Chunk (50/15) → Summary (devstral) → Embed (nomic)
+    → 2 rows/chunk in pgvector
+    → AST parse (tree-sitter) → entities + relations
+    → File → Module → Repo summaries
+
+code-update pipeline:
+  git diff → DELETE stale (chunks + entities + summaries)
+    → Re-chunk → Re-embed → Re-parse AST → Rebuild summaries
+
+code-search:    vector similarity → top 10
+code-overview:  recursive CTE on entity graph (pure SQL)
+code-explain:   vector + graph expansion + file summary → weighted re-rank → top 10
 ```
 
-### What's Next (saved plan)
-
-Relational Layer (W5-W7):
-- W5: Tree-sitter AST → entities + relations tables
-- W6: Hierarchical summaries (file→module→repo)
-- W7: Hybrid query (code-explain skill)
-
-Plan saved at: `~/.claude-company/plans/handover-total-code-recall-zippy-sutherland.md`
+### Plugin Skills (5 total)
+1. `/code-onboard` — First-time project indexing
+2. `/code-update` — Incremental update after commits
+3. `/code-search` — Semantic vector search
+4. `/code-overview` — Structural overview (entities/relations)
+5. `/code-explain` — Hybrid search (vector + graph + summaries)
