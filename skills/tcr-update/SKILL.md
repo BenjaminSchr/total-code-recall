@@ -432,6 +432,40 @@ VALUES
     (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
 """
 
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def _call_openrouter_with_retry(prompt, max_retries=5):
+    """Call OpenRouter with exponential backoff on 429."""
+    import requests
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": OPENROUTER_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 200
+                },
+                timeout=30
+            )
+            if resp.status_code == 429:
+                wait = (2 ** attempt) + 1
+                print(f"  Rate limited, waiting {wait}s (attempt {attempt+1}/{max_retries})")
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(2 ** attempt)
+    raise RuntimeError("OpenRouter: max retries exceeded")
+
 def generate_summary(code_text):
     prompt = (
         "You are a code documentation assistant. "
@@ -440,22 +474,7 @@ def generate_summary(code_text):
         f"```\n{code_text[:3000]}\n```"
     )
     if LLM_PROVIDER == "openrouter":
-        import requests
-        resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": OPENROUTER_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 200
-            },
-            timeout=30
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"].strip()
+        return _call_openrouter_with_retry(prompt)
     else:
         import requests
         resp = requests.post(f"{OLLAMA_URL}/api/generate", json={
@@ -481,15 +500,46 @@ conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
 
 total = len(chunks)
+
+# --- Pre-fetch all summaries (parallel for OpenRouter, sequential for Ollama) ---
+if LLM_PROVIDER == "openrouter":
+    def _process_chunk(chunk):
+        prompt = (
+            "You are a code documentation assistant. "
+            "Write a concise 2-3 sentence summary of what the following code does. "
+            "Focus on purpose and behavior, not syntax.\n\n"
+            f"```\n{chunk['content'][:3000]}\n```"
+        )
+        summary = _call_openrouter_with_retry(prompt)
+        return chunk["chunk_id"], summary
+
+    summaries = {}
+    with ThreadPoolExecutor(max_workers=PARALLEL_WORKERS) as executor:
+        futures = {executor.submit(_process_chunk, c): c for c in chunks}
+        for i, future in enumerate(as_completed(futures), 1):
+            try:
+                chunk_id, summary = future.result()
+                summaries[chunk_id] = summary
+            except Exception as e:
+                c = futures[future]
+                print(f"    WARN: summary failed for chunk {c['chunk_id']}: {e} — using fallback")
+                summaries[c["chunk_id"]] = f"Code chunk from {c['file_path']} lines {c['line_start']}-{c['line_end']}"
+            if i % 10 == 0:
+                print(f"  {i}/{total} summaries generated")
+else:
+    # Ollama: sequential (unchanged)
+    summaries = {}
+    for chunk in chunks:
+        try:
+            summaries[chunk["chunk_id"]] = generate_summary(chunk["content"])
+        except Exception as e:
+            print(f"    WARN: summary failed: {e} — using fallback")
+            summaries[chunk["chunk_id"]] = f"Code chunk from {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}"
+
 for i, chunk in enumerate(chunks):
     print(f"  [{i+1}/{total}] chunk_id={chunk['chunk_id']} {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}", flush=True)
 
-    # --- Summary ---
-    try:
-        summary_text = generate_summary(chunk["content"])
-    except Exception as e:
-        print(f"    WARN: summary failed: {e} — using fallback")
-        summary_text = f"Code chunk from {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}"
+    summary_text = summaries.get(chunk["chunk_id"], f"Code chunk from {chunk['file_path']} lines {chunk['line_start']}-{chunk['line_end']}")
 
     # --- Embeddings ---
     try:
