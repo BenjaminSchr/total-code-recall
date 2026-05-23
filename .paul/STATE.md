@@ -41,9 +41,9 @@
 | W5-T4 | code-overview skill | DONE |
 
 ### Wave 6 — Phase 2: Hierarchical Summaries
-| W6-T1 | Summaries table in onboard | TODO |
-| W6-T2 | File-level summaries | TODO |
-| W6-T3 | Module + repo summaries | TODO |
+| W6-T1 | Summaries table in onboard | DONE |
+| W6-T2 | File-level summaries | DONE |
+| W6-T3 | Module + repo summaries | DONE |
 
 ### Wave 7 — Phase 3: Hybrid Query
 | W7-T1 | code-explain skill | TODO |
