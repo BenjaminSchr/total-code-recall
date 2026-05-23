@@ -84,3 +84,13 @@
 - Wave Review: FAIL (2 issues: STATE.md outdated + stale task files)
 - Wave Fix: Fixed STATE.md + removed stale TASK_W8-T*.md files
 - Merged wave/W8-rename → dev, tagged W8_done
+
+### Wave 9 — Config + Info (2026-05-23)
+- W9-T1: tcr-config SKILL.md created (wizard + change + reset) — DONE
+- W9-T2: tcr-info SKILL.md created (config status + indexed projects + commands) — DONE
+- W9-T3: plugin.json updated to 7 skills (tcr-config + tcr-info added) — DONE
+- Wave Review: FAIL (3 issues found)
+  - BUG-1 (MEDIUM): f-string SQL in tcr-info → fixed with psycopg2.sql.Identifier
+  - BUG-2 (LOW): STATE.md + LOG.md not updated → fixed
+  - BUG-3 (LOW): version mismatch (0.1.0 vs v0.2.0) → plugin.json bumped to 0.2.0
+- Wave Fix: all 3 bugs fixed directly on wave/W9-config-info

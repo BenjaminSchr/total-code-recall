@@ -59,10 +59,10 @@
 | W8-T3 | Update README.md command references | DONE |
 | W8-T4 | Verify — zero code-* references remain | DONE |
 
-### Wave 9 — Config + Info
-| W9-T1 | Create skills/tcr-config/SKILL.md (wizard + change + reset) | TODO |
-| W9-T2 | Create skills/tcr-info/SKILL.md (config + projects + commands) | TODO |
-| W9-T3 | Update plugin.json — register tcr-config + tcr-info (7 skills) | TODO |
+### Wave 9 — Config + Info ✓ DONE
+| W9-T1 | Create skills/tcr-config/SKILL.md (wizard + change + reset) | DONE |
+| W9-T2 | Create skills/tcr-info/SKILL.md (config + projects + commands) | DONE |
+| W9-T3 | Update plugin.json — register tcr-config + tcr-info (7 skills) | DONE |
 
 ### Wave 10 — Provider Switch
 | W10-T1 | Add 3-layer config loader to all 5 SKILL.md embedded scripts | TODO |
