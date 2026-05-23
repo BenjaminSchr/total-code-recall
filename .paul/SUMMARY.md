@@ -1,73 +1,103 @@
-# SUMMARY — total-code-recall Relational Layer
+# SUMMARY — total-code-recall V2
 
-## Final UNIFY — feature/relational-layer
+**Date:** 2026-05-23
+**Milestone:** V2 — Provider Switch + Config + Rename + Supabase + Test Suite
+**Waves:** W8 through W14 (7 waves)
+**Tasks:** 21 tasks total, all DONE
+**Final test result:** 17 passed, 13 skipped, 0 errors
 
-### Waves Completed
+---
 
-| Wave | Tasks | Purpose | Opus Review | Bugs Fixed |
-|------|-------|---------|-------------|------------|
-| W5 | T1-T4 | AST Layer (entities, relations, tree-sitter, code-overview) | FAIL→FIX | 3 (full DELETE, name collision, CTE filter) |
-| W6 | T1-T3 | Hierarchical Summaries (file, module, repo) | PASS | 0 (+1 idempotency guard) |
-| W7 | T1-T2 | Hybrid Query (code-explain, README update) | FAIL→FIX | 3 (re-ranking, README count, summary claim) |
+## Plan vs Actual
 
-### New Files
+### Wave 8 — Rename (4 tasks) ✓
+**Plan:** Rename all skill directories from `code-*` to `tcr-*`, update plugin.json, update README.
+**Actual:** Completed as planned. Plugin bumped to v0.2.0 (discovered version mismatch during Wave Review).
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `skills/code-overview/SKILL.md` | ~444 | Structural overview via entity/relation graph |
-| `skills/code-explain/SKILL.md` | ~526 | Hybrid search: vector + graph + summaries |
+### Wave 9 — Config + Info (3 tasks) ✓
+**Plan:** Create `tcr-config` (wizard) and `tcr-info` (status page) skills.
+**Actual:** Completed as planned. Wave Review caught f-string SQL in tcr-info — fixed to use `psycopg2.sql.Identifier`.
 
-### Modified Files
+### Wave 10 — Provider Switch (3 tasks) ✓
+**Plan:** Add 3-layer config loader to all 5 SKILL.md files + OpenRouter LLM provider in onboard + update.
+**Actual:** Completed. Wave Review caught sub-scripts referencing undefined `LLM_PROVIDER` → fixed.
 
-| File | Changes |
-|------|---------|
-| `skills/code-onboard/SKILL.md` | +entity/relation tables, +AST parsing step, +summaries table, +file/module/repo summary generation |
-| `skills/code-update/SKILL.md` | +entity DELETE cascade, +AST re-parse, +summary rebuild |
-| `scripts/setup_db.sql` | +entity, relation, summaries table templates |
-| `plugin.json` | 3→5 skills (added code-overview, code-explain) |
-| `README.md` | +code-overview/code-explain docs, +tree-sitter prereq, +architecture update |
+### Wave 11 — Parallel + Model List (2 tasks) ✓
+**Plan:** ThreadPoolExecutor parallel OpenRouter calls + live model list from OpenRouter API.
+**Actual:** Completed as planned. `_call_openrouter_with_retry()` with exponential backoff added.
 
-### New DB Tables (per project)
+### Wave 12 — Embedding Provider (2 tasks) ✓
+**Plan:** EMBEDDING_PROVIDER toggle in tcr-config + OpenRouter embedding calls in 4 skills.
+**Actual:** 3 HIGH bugs caught by Wave Review:
+- Sub-scripts isolated from config.json → added Layer 2 supplement to 12 sub-scripts
+- Ollama health check unconditional → made conditional on provider
+- Wrong default embedding model (1536-dim) → changed to google/text-embedding-004 (768-dim)
 
-| Table | Purpose |
+### Wave 13 — Supabase (3 tasks) ✓
+**Plan:** DB_PROVIDER toggle in tcr-config, SQL audit, cloud setup docs.
+**Actual:** Completed. 2 bugs fixed:
+- Empty Supabase URL corrupted config state → guard added
+- SSL separator double-? → fixed with `"&" if "?" in url else "?"`
+
+### Wave 14 — Test Suite (4 tasks) ✓
+**Plan:** 4 test files covering sanitize, config loader, DB integration, E2E.
+**Actual:** Completed. sanitize_project_name in tests diverged from SKILL.md → rewrote to exact logic.
+
+---
+
+## Architecture Summary
+
+### Skills (7 total, all functional)
+| Skill | Purpose |
 |-------|---------|
-| `{project}_entities` | Code elements: files, classes, functions, methods, imports |
-| `{project}_relations` | Relationships: calls, imports, extends, references, contains |
-| `{project}_summaries` | Hierarchical summaries: file, module, repo level |
+| `/tcr-config` | Setup wizard: LLM, Embedding, DB provider selection |
+| `/tcr-onboard` | Index a project: chunking, summary generation, embedding, pgvector storage |
+| `/tcr-update` | Incremental index update after new commits |
+| `/tcr-search` | Semantic search over indexed project |
+| `/tcr-overview` | Structural overview via entity/relation graph |
+| `/tcr-explain` | Hybrid search: vector + graph context + summaries |
+| `/tcr-info` | Show current config, indexed projects, command reference |
 
-### Bugs Found & Fixed
+### Provider Matrix
+| Feature | Local Option | Cloud Option |
+|---------|-------------|--------------|
+| LLM (summaries) | Ollama (devstral:24b) | OpenRouter (any model) |
+| Embeddings | Ollama (nomic-embed-text, 768-dim) | OpenRouter (google/text-embedding-004, 768-dim) |
+| Database | pgvector via Docker | Supabase (pooler, session mode, SSL) |
 
-| Bug | Severity | Fix |
-|-----|----------|-----|
-| Update AST full DELETE wiped unchanged entities | CRITICAL | Removed — Step 4 handles selective deletion |
-| name_to_id collision on duplicate names | HIGH | Qualified keys: file_path::name |
-| CTE traversed all relation types | MEDIUM | Filtered to `r.type = 'calls'` |
-| Summaries not idempotent on re-run | MEDIUM | Added DELETE before regeneration |
-| code-explain no re-ranking | HIGH | Added weighted score: 0.6*vector + 0.2*graph + 0.2*summary |
-| README "Three commands" | MEDIUM | Changed to "Five commands" |
-| README claims module/repo in explain | MEDIUM | Corrected to "file summary context" |
+### Config Layers (priority order)
+1. Project `.env` file → `os.environ`
+2. Global `~/.config/total-code-recall/config.json`
+3. Hardcoded defaults
 
-### Architecture (final)
+### Test Suite
+- `tests/conftest.py` — shared fixtures (sample_project_path, sample_chunks)
+- `tests/test_sanitize.py` — 10 tests (sanitize_project_name exact SKILL.md logic + chunking)
+- `tests/test_config.py` — 7 tests (3-layer config loader priority: env > config.json > default)
+- `tests/test_db.py` — 8 integration tests (skip if DATABASE_URL not set)
+- `tests/test_e2e.py` — 5 E2E tests (skip if Ollama or DB unavailable)
 
-```
-code-onboard pipeline:
-  File Discovery → Chunk (50/15) → Summary (devstral) → Embed (nomic)
-    → 2 rows/chunk in pgvector
-    → AST parse (tree-sitter) → entities + relations
-    → File → Module → Repo summaries
+---
 
-code-update pipeline:
-  git diff → DELETE stale (chunks + entities + summaries)
-    → Re-chunk → Re-embed → Re-parse AST → Rebuild summaries
+## Recurring Issues Documented
 
-code-search:    vector similarity → top 10
-code-overview:  recursive CTE on entity graph (pure SQL)
-code-explain:   vector + graph expansion + file summary → weighted re-rank → top 10
-```
+1. **STATE.md not updated after tasks** — occurred in every wave (W9–W14). Workflow discipline gap, caught by Wave Review each time.
+2. **Sub-script isolation** — Sub-scripts run as isolated Python processes. New config variables in the main context must be manually propagated to 6 sub-scripts in each of tcr-onboard and tcr-update. Root cause of most HIGH bugs in V2.
 
-### Plugin Skills (5 total)
-1. `/code-onboard` — First-time project indexing
-2. `/code-update` — Incremental update after commits
-3. `/code-search` — Semantic vector search
-4. `/code-overview` — Structural overview (entities/relations)
-5. `/code-explain` — Hybrid search (vector + graph + summaries)
+---
+
+## Accepted Risks
+
+- Logic duplicated in onboard + update (drift risk) — documented in STATE.md
+- BUG-004 W12: Stale Ollama error messages — LOW severity, accepted
+- DB/E2E tests skip without live infrastructure — by design
+
+---
+
+## Status
+
+**V2 COMPLETE — All waves W8–W14 executed and merged to dev.**
+
+Plugin version: 0.2.0
+Git tags: W8_done W9_done W10_done W11_done W12_done W13_done W14_done
+Final pytest: 17 passed, 13 skipped, 0 errors

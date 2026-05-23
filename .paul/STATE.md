@@ -1,6 +1,6 @@
 # STATE — total-code-recall
 
-## Current Phase: V1 COMPLETE
+## Current Phase: V2 COMPLETE ✓
 
 ## V1 Tasks — All DONE
 
@@ -53,37 +53,46 @@
 
 ## V2 Tasks — Provider Switch + Config + Rename
 
-### Wave 8 — Rename
-| W8-T1 | Rename skill dirs code-* → tcr-*, update plugin.json paths | TODO |
-| W8-T2 | Update SKILL.md frontmatter names + plugin.json name fields | TODO |
-| W8-T3 | Update README.md command references | TODO |
-| W8-T4 | Verify — zero code-* references remain | TODO |
+### Wave 8 — Rename ✓ DONE
+| W8-T1 | Rename skill dirs code-* → tcr-*, update plugin.json paths | DONE |
+| W8-T2 | Update SKILL.md frontmatter names + plugin.json name fields | DONE |
+| W8-T3 | Update README.md command references | DONE |
+| W8-T4 | Verify — zero code-* references remain | DONE |
 
-### Wave 9 — Config + Info
-| W9-T1 | Create skills/tcr-config/SKILL.md (wizard + change + reset) | TODO |
-| W9-T2 | Create skills/tcr-info/SKILL.md (config + projects + commands) | TODO |
-| W9-T3 | Update plugin.json — register tcr-config + tcr-info (7 skills) | TODO |
+### Wave 9 — Config + Info ✓ DONE
+| W9-T1 | Create skills/tcr-config/SKILL.md (wizard + change + reset) | DONE |
+| W9-T2 | Create skills/tcr-info/SKILL.md (config + projects + commands) | DONE |
+| W9-T3 | Update plugin.json — register tcr-config + tcr-info (7 skills) | DONE |
 
-### Wave 10 — Provider Switch
-| W10-T1 | Add 3-layer config loader to all 5 SKILL.md embedded scripts | TODO |
-| W10-T2 | Add OpenRouter LLM provider in tcr-onboard SKILL.md | TODO |
-| W10-T3 | Add OpenRouter LLM provider in tcr-update SKILL.md | TODO |
+### Wave 10 — Provider Switch ✓ DONE
+| W10-T1 | Add 3-layer config loader to all 5 SKILL.md embedded scripts | DONE |
+| W10-T2 | Add OpenRouter LLM provider in tcr-onboard SKILL.md | DONE |
+| W10-T3 | Add OpenRouter LLM provider in tcr-update SKILL.md | DONE |
 
-### Wave 11 — Parallel + Model List
-| W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | TODO |
-| W11-T2 | Live model list from OpenRouter API in tcr-config | TODO |
+### Wave 11 — Parallel + Model List ✓ DONE
+| W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | DONE |
+| W11-T2 | Live model list from OpenRouter API in tcr-config | DONE |
 
-### Wave 12 — Embedding Provider
-| W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | TODO |
-| W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | TODO |
+### Wave 12 — Embedding Provider ✓ DONE
+| W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | DONE |
+| W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | DONE |
 
-### Wave 13 — Supabase
-| W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | TODO |
-| W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | TODO |
-| W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | TODO |
+### Wave 13 — Supabase ✓ DONE
+| W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | DONE |
+| W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | DONE |
+| W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | DONE |
 
-### Wave 14 — Test Suite
-| W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (9 tests) | TODO |
-| W14-T2 | Create tests/test_config.py — config loader priority (7 tests) | TODO |
-| W14-T3 | Create tests/test_db.py — schema/entity/vector/summary (9 tests) | TODO |
-| W14-T4 | Create tests/test_e2e.py — onboard → search → verify (5 tests) | TODO |
+### Wave 14 — Test Suite ✓ DONE
+| W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (10 tests) | DONE |
+| W14-T2 | Create tests/test_config.py — config loader priority (7 tests) | DONE |
+| W14-T3 | Create tests/test_db.py — schema/entity/vector/summary (8 tests) | DONE |
+| W14-T4 | Create tests/test_e2e.py — onboard → search → verify (5 tests) | DONE |
+
+---
+
+## Final UNIFY — V2 COMPLETE
+- All 21 tasks across Waves W8–W14: DONE
+- Plugin version: 0.2.0
+- 7 skills registered in plugin.json
+- Test suite: 17 passed, 13 skipped, 0 errors
+- Tags: W8_done W9_done W10_done W11_done W12_done W13_done W14_done

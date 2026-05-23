@@ -8,7 +8,7 @@ Semantic code search for Claude Code. Index once, search instantly — no API ke
 
 **The problem:** Every time an agent opens your codebase it reads dozens of files to understand the project. That burns context window and costs tokens.
 
-**The solution:** Run `/code-onboard` once. The plugin splits your code into 50-line chunks, generates summaries with a local LLM (devstral), embeds both the summary and the raw code with a local embedding model (nomic-embed-text), and stores everything in a pgvector database. From then on, `/code-search "date filter"` finds the right file and line range in seconds — without reading a single source file.
+**The solution:** Run `/tcr-onboard` once. The plugin splits your code into 50-line chunks, generates summaries with a local LLM (devstral), embeds both the summary and the raw code with a local embedding model (nomic-embed-text), and stores everything in a pgvector database. From then on, `/tcr-search "date filter"` finds the right file and line range in seconds — without reading a single source file.
 
 Five commands. Zero API keys. All local.
 
@@ -21,7 +21,7 @@ Five commands. Zero API keys. All local.
 - [Ollama](https://ollama.ai) running locally (default: `http://localhost:11434`)
 - PostgreSQL with pgvector extension (see Option A or B below)
 - Python 3.10+ with `psycopg2-binary` and `requests` available to Claude Code
-- `tree-sitter` and `tree-sitter-languages` (optional — enables structural analysis via `/code-overview` and `/code-explain`)
+- `tree-sitter` and `tree-sitter-languages` (optional — enables structural analysis via `/tcr-overview` and `/tcr-explain`)
 
 ### Option A — Docker (recommended)
 
@@ -76,16 +76,39 @@ ollama pull devstral:24b
 claude plugin add github:BenjaminSchr/total-code-recall
 ```
 
+### Option C — Cloud Setup (Zero Local Infrastructure)
+
+Run total-code-recall entirely in the cloud — no Docker, no Ollama required.
+
+**Requirements:**
+- OpenRouter account + API key (https://openrouter.ai)
+- Supabase project + connection string (https://supabase.com, free tier works)
+- Claude Code with this plugin installed
+
+**Setup:**
+1. Install the plugin: `claude plugin add github:BenjaminSchr/total-code-recall`
+2. Run `/tcr-config`
+3. LLM Provider → Cloud (OpenRouter) → paste API key → pick model
+4. Embedding Provider → Cloud (OpenRouter) → pick embedding model (use `google/text-embedding-004` for 768-dim compatibility)
+5. Database → Cloud (Supabase) → paste pooler connection string (Session mode)
+
+**Finding your Supabase connection string:**
+Supabase dashboard → Settings → Database → Connection string → Session mode
+
+**Onboard time:** ~2-5 minutes for a 10k line project (parallel OpenRouter calls).
+
+**Cost estimate:** ~$0.001 per summary, ~$0.0001 per embedding. 500-chunk project ≈ $0.05.
+
 ---
 
 ## Usage
 
-### `/code-onboard` — First-time indexing
+### `/tcr-onboard` — First-time indexing
 
 Run this once when you start working on a new project. Must be executed from inside a Git repository.
 
 ```
-/code-onboard
+/tcr-onboard
 ```
 
 What happens:
@@ -95,7 +118,7 @@ What happens:
 4. Generates a 2-3 sentence summary for each chunk using devstral
 5. Embeds both the summary and the raw code using nomic-embed-text
 6. Bulk-inserts everything into pgvector
-7. Records the HEAD commit hash so `/code-update` knows where to resume
+7. Records the HEAD commit hash so `/tcr-update` knows where to resume
 
 Example output:
 ```
@@ -110,19 +133,19 @@ Rows in DB:       774  (summary + code per chunk)
 Embedding model:  nomic-embed-text
 Summary model:    devstral:24b
 
-You can now use /code-search to semantically search your code.
+You can now use /tcr-search to semantically search your code.
 ```
 
-Re-running `/code-onboard` on an already-indexed project clears the existing index and rebuilds from scratch. Use `/code-update` for incremental updates.
+Re-running `/tcr-onboard` on an already-indexed project clears the existing index and rebuilds from scratch. Use `/tcr-update` for incremental updates.
 
 ---
 
-### `/code-update` — Incremental updates after new commits
+### `/tcr-update` — Incremental updates after new commits
 
 Run after you commit new code to keep the index current. Only re-indexes files that changed.
 
 ```
-/code-update
+/tcr-update
 ```
 
 What happens:
@@ -149,12 +172,12 @@ If nothing changed since the last index, it exits cleanly: `No new commits since
 
 ---
 
-### `/code-search "query"` — Semantic search
+### `/tcr-search "query"` — Semantic search
 
 Search for code by meaning, not just keywords.
 
 ```
-/code-search "date range filter for transactions"
+/tcr-search "date range filter for transactions"
 ```
 
 Returns the top 10 most relevant chunks with file path, line numbers, type (summary or raw code), similarity score, and the full chunk content.
@@ -183,28 +206,28 @@ The `summary` type contains the AI-generated description. The `code` type contai
 
 ---
 
-### `/code-overview` — Structural overview
+### `/tcr-overview` — Structural overview
 
 Shows your project's structure: classes, functions, imports, and call relationships. No LLM needed — pure database queries.
 
 ```
-/code-overview                    # Full project overview
-/code-overview MyClassName        # Show callers and callees for a specific symbol
+/tcr-overview                    # Full project overview
+/tcr-overview MyClassName        # Show callers and callees for a specific symbol
 ```
 
-Requires tree-sitter to have been installed when `/code-onboard` was run. If the entity tables are empty, the skill reports that structural analysis is unavailable.
+Requires tree-sitter to have been installed when `/tcr-onboard` was run. If the entity tables are empty, the skill reports that structural analysis is unavailable.
 
 ---
 
-### `/code-explain "query"` — Hybrid search
+### `/tcr-explain "query"` — Hybrid search
 
 Combines vector similarity search with structural graph analysis. Returns code chunks enriched with entity context, callers/callees, and file summaries.
 
 ```
-/code-explain "how does authentication work"
+/tcr-explain "how does authentication work"
 ```
 
-Differs from `/code-search` in that results are augmented with structural context: which functions call the matched code, what the file summary says, and which entities are involved. Works best when tree-sitter was installed during `/code-onboard`; without it, entity/graph context will be empty but vector search and file summaries still work.
+Differs from `/tcr-search` in that results are augmented with structural context: which functions call the matched code, what the file summary says, and which entities are involved. Works best when tree-sitter was installed during `/tcr-onboard`; without it, entity/graph context will be empty but vector search and file summaries still work.
 
 ---
 
@@ -249,19 +272,19 @@ Hierarchical summaries (built after chunking):
     file summaries  ──►  module summary   ──►  _summaries (level='module')
     module summaries  ──►  repo summary   ──►  _summaries (level='repo')
 
-/code-search "query"  ──►  vector search  ──►  top 10 chunks by cosine similarity
+/tcr-search "query"  ──►  vector search  ──►  top 10 chunks by cosine similarity
 
-/code-explain "query"  ──►  vector search + graph lookup
+/tcr-explain "query"  ──►  vector search + graph lookup
     ├──►  matched chunks
     ├──►  entity context (callers, callees)
     └──►  file summary context
 
-/code-overview  ──►  pure DB queries on _entities + _relations (no LLM)
+/tcr-overview  ──►  pure DB queries on _entities + _relations (no LLM)
 ```
 
 Each chunk produces two rows in the database: one for the AI summary, one for the raw code. The search query is embedded with the same model and compared against both. Deduplication ensures a chunk appears at most once in the results, with the best-matching row winning.
 
-The relational layer (entity and relation tables, built via tree-sitter AST parsing) is optional and non-blocking: if tree-sitter is not installed, `/code-onboard` skips it with a warning and the vector search pipeline continues normally. Installing tree-sitter unlocks `/code-overview` and the graph-augmented `/code-explain`.
+The relational layer (entity and relation tables, built via tree-sitter AST parsing) is optional and non-blocking: if tree-sitter is not installed, `/tcr-onboard` skips it with a warning and the vector search pipeline continues normally. Installing tree-sitter unlocks `/tcr-overview` and the graph-augmented `/tcr-explain`.
 
 The HNSW index on the embedding column makes vector queries fast even on large codebases.
 
@@ -270,10 +293,10 @@ The HNSW index on the embedding column makes vector queries fast even on large c
 ## FAQ
 
 **What is the relational layer?**
-When tree-sitter is installed, `/code-onboard` parses Python files to extract a structural model of the codebase: entities (files, classes, functions, methods, imports) and relations between them (calls, imports, contains). This data is stored in `_entities` and `_relations` tables alongside the vector index. The relational layer powers `/code-overview` (structure browsing) and enriches `/code-explain` results with caller/callee context. Without it, vector search still works normally.
+When tree-sitter is installed, `/tcr-onboard` parses Python files to extract a structural model of the codebase: entities (files, classes, functions, methods, imports) and relations between them (calls, imports, contains). This data is stored in `_entities` and `_relations` tables alongside the vector index. The relational layer powers `/tcr-overview` (structure browsing) and enriches `/tcr-explain` results with caller/callee context. Without it, vector search still works normally.
 
 **Do I need tree-sitter?**
-No. It is optional. Without it, `/code-onboard` and `/code-update` work fully for vector search (`/code-search`). Installing it (`pip install tree-sitter tree-sitter-languages`) adds structural analysis: entity/relation extraction, the `/code-overview` command, and graph-augmented results in `/code-explain`.
+No. It is optional. Without it, `/tcr-onboard` and `/tcr-update` work fully for vector search (`/tcr-search`). Installing it (`pip install tree-sitter tree-sitter-languages`) adds structural analysis: entity/relation extraction, the `/tcr-overview` command, and graph-augmented results in `/tcr-explain`.
 
 **What languages are supported?**
 Any text file. Chunking is fixed-size and language-agnostic — no parser required. The default allowlist covers: `.py`, `.html`, `.sql`, `.js`, `.css`, `.yaml`, `.json`, `.toml`, `.md`, `.sh`. Structural analysis (tree-sitter) currently covers Python only.
@@ -285,16 +308,16 @@ No. Everything runs locally via Ollama. No data leaves your machine.
 Roughly 1 MB per 1,000 lines of code, depending on summary length. A 50,000-line project takes around 50 MB.
 
 **Can I change the embedding model?**
-Yes, update `EMBEDDING_MODEL` in `.env`. Note: the schema uses `vector(768)` which matches `nomic-embed-text`. If you switch to a model with different output dimensions, you must drop the project table (`DROP TABLE project_name`) and re-run `/code-onboard` to rebuild. The plugin detects model mismatches and will warn you before a search returns bad results.
+Yes, update `EMBEDDING_MODEL` in `.env`. Note: the schema uses `vector(768)` which matches `nomic-embed-text`. If you switch to a model with different output dimensions, you must drop the project table (`DROP TABLE project_name`) and re-run `/tcr-onboard` to rebuild. The plugin detects model mismatches and will warn you before a search returns bad results.
 
 **What about private code?**
 Everything stays local. Summaries are generated by a local Ollama model, embeddings are computed locally, and the database runs on your machine. No code or metadata is sent to any external service.
 
 **How do I update the index after new commits?**
-Run `/code-update` from the project directory. It reads the last indexed commit hash, diffs against the current HEAD, and only re-indexes changed files.
+Run `/tcr-update` from the project directory. It reads the last indexed commit hash, diffs against the current HEAD, and only re-indexes changed files.
 
 **Can I index multiple projects?**
-Yes. Each project gets its own table named after the Git repo (e.g., `my_project`, `tokenwatch`). All tables live in the same database. Run `/code-onboard` from each project directory.
+Yes. Each project gets its own table named after the Git repo (e.g., `my_project`, `tokenwatch`). All tables live in the same database. Run `/tcr-onboard` from each project directory.
 
 ---
 
@@ -304,7 +327,7 @@ Yes. Each project gets its own table named after the Git repo (e.g., `my_project
 - **Ollama 0.3+** — local LLM server for summaries and embeddings (`ollama serve`). `devstral:24b` requires ~16 GB VRAM (GPU recommended).
 - **PostgreSQL 14+ with pgvector 0.5+** — via Docker (`docker compose up -d`) or your own instance
 - **Python 3.10+** — with `psycopg2-binary` and `requests` (`pip install -r requirements.txt`)
-- **tree-sitter and tree-sitter-languages** (optional) — enables structural analysis for `/code-overview` and `/code-explain` (`pip install tree-sitter tree-sitter-languages`)
+- **tree-sitter and tree-sitter-languages** (optional) — enables structural analysis for `/tcr-overview` and `/tcr-explain` (`pip install tree-sitter tree-sitter-languages`)
 
 ---
 
@@ -317,7 +340,7 @@ Yes. Each project gets its own table named after the Git repo (e.g., `my_project
 | `DB connection failed` | PostgreSQL not running or wrong URL | Check `DATABASE_URL` in `.env`, verify DB is up |
 | `permission denied for extension vector` | setup_db.sql not run as superuser | Run as postgres user: `psql -U postgres -d code_index_db -f scripts/setup_db.sql` |
 | `No git repository found` | Not inside a git repo | `cd` into your project and run `git init` if needed |
-| `Embedding model mismatch` | `.env` model changed since last index | Re-run `/code-onboard` to rebuild with new model |
+| `Embedding model mismatch` | `.env` model changed since last index | Re-run `/tcr-onboard` to rebuild with new model |
 | `AST_SKIP: tree-sitter not installed` | tree-sitter not available (non-blocking) | `pip install tree-sitter tree-sitter-languages` for structural analysis |
 
 ---

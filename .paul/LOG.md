@@ -76,3 +76,91 @@
 - 5 DB Tables/project: chunks, entities, relations, summaries, _index_meta
 - Total: 24 tasks across 7 waves, all DONE
 - Pushed to GitHub: dev branch
+
+### Wave 8 — Rename (2026-05-23)
+- W8-T2: SKILL.md frontmatter + plugin.json names code-* → tcr-* — DONE
+- W8-T3: README.md command references code-* → tcr-* — DONE
+- W8-T4: Verification — all 3 checks PASS — DONE
+- Wave Review: FAIL (2 issues: STATE.md outdated + stale task files)
+- Wave Fix: Fixed STATE.md + removed stale TASK_W8-T*.md files
+- Merged wave/W8-rename → dev, tagged W8_done
+
+### Wave 9 — Config + Info (2026-05-23)
+- W9-T1: tcr-config SKILL.md created (wizard + change + reset) — DONE
+- W9-T2: tcr-info SKILL.md created (config status + indexed projects + commands) — DONE
+- W9-T3: plugin.json updated to 7 skills (tcr-config + tcr-info added) — DONE
+- Wave Review: FAIL (3 issues found)
+  - BUG-1 (MEDIUM): f-string SQL in tcr-info → fixed with psycopg2.sql.Identifier
+  - BUG-2 (LOW): STATE.md + LOG.md not updated → fixed
+  - BUG-3 (LOW): version mismatch (0.1.0 vs v0.2.0) → plugin.json bumped to 0.2.0
+- Wave Fix: all 3 bugs fixed directly on wave/W9-config-info
+
+### Wave 10 — Provider Switch (2026-05-23)
+- W10-T1: 3-layer config loader added to all 5 SKILL.md files — DONE
+- W10-T2: OpenRouter provider branch added to tcr-onboard — DONE
+- W10-T3: OpenRouter provider branch added to tcr-update — DONE
+- Wave Review: FAIL (3 bugs found)
+  - BUG-1 (HIGH): tcr-onboard Step 6 sub-script generate_summary() used undefined LLM_PROVIDER → fixed
+  - BUG-2 (HIGH): tcr-update Step 5b sub-script generate_summary() used undefined LLM_PROVIDER → fixed
+  - BUG-3 (LOW): STATE.md Wave 10 not updated → fixed
+- Wave Fix: all 3 bugs fixed on wave/W10-provider-switch
+
+### Wave 11 — Parallel + Model List (2026-05-23)
+- W11-T1: ThreadPoolExecutor + exponential backoff retry in tcr-onboard + tcr-update — DONE
+- W11-T2: Live OpenRouter model list (5-provider filter) in tcr-config — DONE
+- Wave Review: FAIL (1 issue: STATE.md not updated → fixed)
+- Wave Fix: STATE.md + LOG.md updated
+
+### Wave 12 — Embedding Provider (2026-05-23)
+- W12-T1: Embedding provider toggle functional in tcr-config — DONE
+- W12-T2: OpenRouter embedding calls in 4 SKILL.md files — DONE
+- Wave Review: FAIL (5 bugs found, 3 HIGH)
+  - BUG-001 (HIGH): Sub-scripts missing config.json loader for EMBEDDING_PROVIDER → fixed (6 sub-scripts each in onboard/update)
+  - BUG-002 (HIGH): Ollama check unconditional → fixed (skip if both providers = openrouter)
+  - BUG-003 (HIGH): Vector dimension warning missing → fixed (768-dim warning + google/text-embedding-004 as default)
+  - BUG-004 (LOW): Stale error messages → acceptable (not fixed)
+  - BUG-005 (MEDIUM): STATE.md not updated → fixed
+- Wave Fix: committed on wave/W12-embedding-provider
+- Merged wave/W12-embedding-provider → dev, tagged W12_done
+
+### Zwischen-UNIFY W12 (2026-05-23)
+- STATE.md updated: phase → V2 Wave 13 IN PROGRESS
+- LOG.md updated
+- Proceeding to Wave 13 — Supabase
+
+### Wave 13 — Supabase (2026-05-23)
+- W13-T1: Functional Toggle 3 (DB Provider) in tcr-config — DONE
+- W13-T2: DB_PROVIDER added to onboard + update; SQL audited, no COPY statements — DONE
+- W13-T3: Cloud Setup section in README.md + db_provider display in tcr-info — DONE
+- Wave Review: FAIL (3 bugs)
+  - BUG-W13-001 (HIGH): Empty Supabase URL set db_provider without database_url → fixed (db_provider only set in valid URL path)
+  - BUG-W13-002 (MEDIUM): SSL separator always `?` → fixed (uses `&` if URL already has query params)
+  - BUG-W13-003 (LOW): STATE.md not updated → fixed
+- Wave Fix: committed directly on wave/W13-supabase
+- Merged wave/W13-supabase → dev, tagged W13_done
+
+### Zwischen-UNIFY W13 (2026-05-23)
+- STATE.md updated: phase → V2 Wave 14 IN PROGRESS
+- LOG.md updated
+- Proceeding to Wave 14 — Test Suite
+
+### Wave 14 — Test Suite (2026-05-23)
+- W14-T1: tests/conftest.py + tests/test_sanitize.py — 10 tests, all PASS — DONE
+- W14-T2: tests/test_config.py — 7 tests, all PASS — DONE
+- W14-T3: tests/test_db.py — 8 integration tests, SKIP cleanly without DB — DONE
+- W14-T4: tests/test_e2e.py — 5 E2E tests, SKIP cleanly without Ollama/DB — DONE
+- Full suite: 17 passed, 13 skipped, 0 errors
+- Wave Review: FAIL (3 bugs)
+  - BUG-001 (HIGH): sanitize_project_name diverged from SKILL.md (replace vs strip, p_ prefix vs strip digits) — fixed
+  - BUG-002 (LOW): STATE.md not updated — fixed
+  - BUG-003 (LOW): test count doc mismatch — updated STATE.md counts
+- Wave Fix: committed directly on wave/W14-test-suite
+- Merged wave/W14-test-suite → dev, tagged W14_done
+
+### Final UNIFY — V2 COMPLETE (2026-05-23)
+- Full pytest: 17 passed, 13 skipped, 0 errors
+- SUMMARY.md written: plan vs actual, architecture, recurring issues, accepted risks
+- STATE.md: V2 COMPLETE, all tasks DONE
+- LOG.md: closed
+- Plugin version: 0.2.0 — 7 skills, 3-provider matrix (LLM/Embedding/DB), full test suite
+- All waves W8–W14 merged to dev: W8_done W9_done W10_done W11_done W12_done W13_done W14_done
