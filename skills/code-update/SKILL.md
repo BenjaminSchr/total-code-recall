@@ -649,12 +649,14 @@ for fp in py_files:
 conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 
-# Clear existing entities (CASCADE deletes relations)
-cur.execute(f"DELETE FROM {PROJECT_NAME}_entities")
-conn.commit()
+# NOTE: No full DELETE here — Step 4 already selectively deleted entities
+# for changed/deleted files. We only INSERT entities for files_to_reindex.
 
 # --- INSERT entities and collect name->id map ---
-name_to_id = {}  # entity name -> db id
+# Key format: "file_path::name" to avoid collisions (e.g. multiple __init__ functions)
+name_to_id = {}  # "file_path::entity_name" -> db id
+# Also keep a bare name lookup for cross-file call resolution
+bare_name_to_id = {}  # "entity_name" -> db id (last wins, best-effort)
 
 INSERT_ENTITY = f"""
 INSERT INTO {PROJECT_NAME}_entities (type, name, file_path, line_start, line_end, parent_id)
@@ -663,14 +665,17 @@ RETURNING id
 """
 
 for ent in entities:
-    parent_id = name_to_id.get(ent["parent_name"]) if ent["parent_name"] else None
+    parent_key = f'{ent["file_path"]}::{ent["parent_name"]}' if ent["parent_name"] else None
+    parent_id = name_to_id.get(parent_key) if parent_key else None
     cur.execute(INSERT_ENTITY, (
         ent["type"], ent["name"], ent["file_path"],
         ent["line_start"], ent["line_end"], parent_id
     ))
     row = cur.fetchall()
     ent_id = row[0][0]
-    name_to_id[ent["name"]] = ent_id
+    qualified_key = f'{ent["file_path"]}::{ent["name"]}'
+    name_to_id[qualified_key] = ent_id
+    bare_name_to_id[ent["name"]] = ent_id
 
 conn.commit()
 entity_count = len(entities)
@@ -688,8 +693,10 @@ relation_count = 0
 # contains relations (already encoded via parent_id, also insert explicit relation rows)
 for ent in entities:
     if ent["parent_name"] and ent["type"] in ("class", "function", "method", "import"):
-        from_id = name_to_id.get(ent["parent_name"])
-        to_id = name_to_id.get(ent["name"])
+        parent_key = f'{ent["file_path"]}::{ent["parent_name"]}'
+        child_key = f'{ent["file_path"]}::{ent["name"]}'
+        from_id = name_to_id.get(parent_key)
+        to_id = name_to_id.get(child_key)
         if from_id and to_id:
             cur.execute(INSERT_RELATION, (from_id, to_id, "contains"))
             relation_count += 1
@@ -719,15 +726,15 @@ for fp in py_files:
                 else:
                     called_name = None
 
-                if called_name and called_name in name_to_id:
+                if called_name and called_name in bare_name_to_id:
                     # find the enclosing function/method
                     caller = node.parent
                     while caller and caller.type not in ("function_definition",):
                         caller = caller.parent
                     if caller:
                         caller_name = get_name_from_node(caller, source_bytes)
-                        from_id = name_to_id.get(caller_name)
-                        to_id = name_to_id.get(called_name)
+                        from_id = bare_name_to_id.get(caller_name)
+                        to_id = bare_name_to_id.get(called_name)
                         if from_id and to_id and from_id != to_id:
                             cur.execute(INSERT_RELATION, (from_id, to_id, "calls"))
                             relation_count += 1
@@ -735,13 +742,13 @@ for fp in py_files:
         # imports relations
         elif node.type in ("import_statement", "import_from_statement"):
             import_text = get_node_text(node, source_bytes).split("\n")[0].strip()
-            from_id = name_to_id.get(import_text)
+            from_id = bare_name_to_id.get(import_text)
             if from_id:
                 # match imported names against known entities
                 for child in walk_tree(node):
                     if child.type == "dotted_name" or child.type == "identifier":
                         imported = get_node_text(child, source_bytes)
-                        to_id = name_to_id.get(imported)
+                        to_id = bare_name_to_id.get(imported)
                         if to_id and to_id != from_id:
                             cur.execute(INSERT_RELATION, (from_id, to_id, "imports"))
                             relation_count += 1

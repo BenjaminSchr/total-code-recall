@@ -247,7 +247,7 @@ try:
 
                 SELECT e2.id, e2.type, e2.name, e2.file_path, sg.depth + 1, 'callee'
                 FROM subgraph sg
-                JOIN {PROJECT_NAME}_relations r ON r.from_id = sg.id
+                JOIN {PROJECT_NAME}_relations r ON r.from_id = sg.id AND r.type = 'calls'
                 JOIN {PROJECT_NAME}_entities e2 ON e2.id = r.to_id
                 WHERE sg.depth < %s
 
@@ -255,7 +255,7 @@ try:
 
                 SELECT e2.id, e2.type, e2.name, e2.file_path, sg.depth + 1, 'caller'
                 FROM subgraph sg
-                JOIN {PROJECT_NAME}_relations r ON r.to_id = sg.id
+                JOIN {PROJECT_NAME}_relations r ON r.to_id = sg.id AND r.type = 'calls'
                 JOIN {PROJECT_NAME}_entities e2 ON e2.id = r.from_id
                 WHERE sg.depth < %s
             )
