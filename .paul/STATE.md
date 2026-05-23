@@ -19,15 +19,19 @@
 | W2-T2 | Create code-update SKILL.md | DONE |
 | W2-T3 | Create code-search SKILL.md | DONE |
 
+### Wave 2.5 — Bugfix
+| Task | Description | Status |
+|------|-------------|--------|
+| W2.5-T1 | Translate skill outputs German → English | TODO |
+| W2.5-T2 | Add .env loading to temp scripts | TODO |
+
 ### Wave 3 — Polish & Publish
 | Task | Description | Status |
 |------|-------------|--------|
 | W3-T1 | Write README.md + FAQ | TODO |
 
 ## Open Issues
-- Skills haben deutsche Outputs — muss auf Englisch
-- .env Loading fehlt in temp Scripts
-- tcr_index.py dupliziert in onboard + update (Drift-Risiko)
+- tcr_index.py dupliziert in onboard + update (Drift-Risiko, akzeptiert)
 
 ## Blockers
 - None
