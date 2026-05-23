@@ -127,3 +127,13 @@
 - STATE.md updated: phase → V2 Wave 13 IN PROGRESS
 - LOG.md updated
 - Proceeding to Wave 13 — Supabase
+
+### Wave 13 — Supabase (2026-05-23)
+- W13-T1: Functional Toggle 3 (DB Provider) in tcr-config — DONE
+- W13-T2: DB_PROVIDER added to onboard + update; SQL audited, no COPY statements — DONE
+- W13-T3: Cloud Setup section in README.md + db_provider display in tcr-info — DONE
+- Wave Review: FAIL (3 bugs)
+  - BUG-W13-001 (HIGH): Empty Supabase URL set db_provider without database_url → fixed (db_provider only set in valid URL path)
+  - BUG-W13-002 (MEDIUM): SSL separator always `?` → fixed (uses `&` if URL already has query params)
+  - BUG-W13-003 (LOW): STATE.md not updated → fixed
+- Wave Fix: committed directly on wave/W13-supabase

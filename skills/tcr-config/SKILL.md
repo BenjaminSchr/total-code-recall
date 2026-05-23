@@ -146,7 +146,6 @@ Enter 1 or 2 [default: 1]:
 db_choice = input("> ").strip() or "1"
 
 if db_choice == "2":
-    cfg["db_provider"] = "supabase"
     print("""
 Supabase connection string (use the pooler URL for session mode):
 Format: postgresql://[user].[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
@@ -155,11 +154,13 @@ Find it in: Supabase dashboard → Settings → Database → Connection string �
 """)
     db_url = input("Supabase connection string: ").strip()
     if not db_url:
-        print("ERROR: Connection string required for Supabase.")
+        print("ERROR: Connection string required for Supabase. Config not saved for database.")
     else:
-        # Ensure SSL is appended if missing
+        # Ensure SSL is appended if missing — use & if URL already has query params
         if "sslmode=" not in db_url:
-            db_url = db_url + "?sslmode=require"
+            sep = "&" if "?" in db_url else "?"
+            db_url = db_url + sep + "sslmode=require"
+        cfg["db_provider"] = "supabase"
         cfg["database_url"] = db_url
         print("Supabase URL saved (SSL enforced).")
 else:
@@ -238,7 +239,6 @@ Enter 1 or 2 [default: 1]:
     db_change_choice = input("> ").strip() or "1"
 
     if db_change_choice == "2":
-        cfg["db_provider"] = "supabase"
         print("""
 Supabase connection string (use the pooler URL for session mode):
 Format: postgresql://[user].[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
@@ -247,10 +247,12 @@ Find it in: Supabase dashboard → Settings → Database → Connection string �
 """)
         db_url = input("Supabase connection string: ").strip()
         if not db_url:
-            print("ERROR: Connection string required for Supabase.")
+            print("ERROR: Connection string required for Supabase. Config not saved for database.")
         else:
             if "sslmode=" not in db_url:
-                db_url = db_url + "?sslmode=require"
+                sep = "&" if "?" in db_url else "?"
+                db_url = db_url + sep + "sslmode=require"
+            cfg["db_provider"] = "supabase"
             cfg["database_url"] = db_url
             print("Supabase URL saved (SSL enforced).")
     else:
