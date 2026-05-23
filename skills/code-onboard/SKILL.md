@@ -72,6 +72,8 @@ raw_name = "<result of basename command>"
 project_name = raw_name.lower()
 project_name = project_name.replace("-", "_")
 project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+if project_name and project_name[0].isdigit():
+    project_name = "p_" + project_name
 ```
 
 Also extract the HEAD commit hash and most recent commit message for use in Step 6:
@@ -598,13 +600,13 @@ for fp in py_files:
         # imports relations
         elif node.type in ("import_statement", "import_from_statement"):
             import_text = get_node_text(node, source_bytes).split("\n")[0].strip()
-            from_id = name_to_id.get(import_text)
+            from_id = bare_name_to_id.get(import_text)
             if from_id:
                 # match imported names against known entities
                 for child in walk_tree(node):
                     if child.type == "dotted_name" or child.type == "identifier":
                         imported = get_node_text(child, source_bytes)
-                        to_id = name_to_id.get(imported)
+                        to_id = bare_name_to_id.get(imported)
                         if to_id and to_id != from_id:
                             cur.execute(INSERT_RELATION, (from_id, to_id, "imports"))
                             relation_count += 1

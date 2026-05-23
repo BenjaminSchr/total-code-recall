@@ -68,6 +68,8 @@ raw_name = "<result of basename command>"
 project_name = raw_name.lower()
 project_name = project_name.replace("-", "_")
 project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+if project_name and project_name[0].isdigit():
+    project_name = "p_" + project_name
 ```
 
 Store: `project_name`.

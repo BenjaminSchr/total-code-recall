@@ -204,7 +204,7 @@ Combines vector similarity search with structural graph analysis. Returns code c
 /code-explain "how does authentication work"
 ```
 
-Differs from `/code-search` in that results are augmented with structural context: which functions call the matched code, what the file summary says, and which entities are involved. Requires tree-sitter to have been installed when `/code-onboard` was run; without it, falls back to plain vector search.
+Differs from `/code-search` in that results are augmented with structural context: which functions call the matched code, what the file summary says, and which entities are involved. Works best when tree-sitter was installed during `/code-onboard`; without it, entity/graph context will be empty but vector search and file summaries still work.
 
 ---
 

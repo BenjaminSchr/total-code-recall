@@ -1,2 +1,6 @@
 psycopg2-binary
 requests
+
+# Optional: structural analysis (/code-overview, /code-explain)
+# tree-sitter
+# tree-sitter-languages

@@ -69,6 +69,8 @@ raw_name = "<result of basename command>"
 project_name = raw_name.lower()
 project_name = project_name.replace("-", "_")
 project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+if project_name and project_name[0].isdigit():
+    project_name = "p_" + project_name
 ```
 
 Store: `project_name`.
@@ -191,7 +193,7 @@ try:
         cur.execute(f"""
             SELECT e_parent.file_path, e_child.type, e_child.name
             FROM {PROJECT_NAME}_entities e_parent
-            JOIN {PROJECT_NAME}_relations r ON r.from_id = e_parent.id
+            JOIN {PROJECT_NAME}_relations r ON r.from_id = e_parent.id AND r.type = 'contains'
             JOIN {PROJECT_NAME}_entities e_child ON e_child.id = r.to_id
             WHERE e_parent.type = 'file'
               AND e_child.type IN ('class', 'function')

@@ -70,6 +70,8 @@ raw_name = "<result of basename command>"
 project_name = raw_name.lower()
 project_name = project_name.replace("-", "_")
 project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+if project_name and project_name[0].isdigit():
+    project_name = "p_" + project_name
 ```
 
 Store: `project_name`.
@@ -364,7 +366,7 @@ try:
     for item in seen.values():
         vector_score = item["similarity"]
         graph_score = 1.0 if (item.get("callers") or item.get("callees")) else 0.0
-        summary_score = 0.5 if item.get("file_summary") else 0.0
+        summary_score = 1.0 if item.get("file_summary") else 0.0
         item["final_score"] = 0.6 * vector_score + 0.2 * graph_score + 0.2 * summary_score
 
     final = sorted(seen.values(), key=lambda x: x["final_score"], reverse=True)[:10]
@@ -431,7 +433,7 @@ Found: {len(results)} enriched results
 Then for each result, print the following format:
 
 ```
-━━━ Match {rank} (Score: {similarity:.4f}) ━━━
+━━━ Match {rank} (Score: {final_score:.4f}) ━━━
 File: {file_path}  Lines: {line_start}–{line_end}  Type: {type}
 ```
 
@@ -476,7 +478,7 @@ Tip: Use /code-overview <symbol_name> to explore the full call graph for any ent
 
 Where:
 - `{rank}` is the 1-based result number (1 = highest similarity)
-- `{similarity:.4f}` is the cosine similarity score formatted to 4 decimal places
+- `{final_score:.4f}` is the weighted score (0.6*vector + 0.2*graph + 0.2*summary)
 - `{type}` is `summary` (AI description) or `code` (raw source)
 - `{content}` is the full chunk text (do not truncate)
 - Entity, Callers, Callees, and File Summary lines are omitted entirely when their data is empty

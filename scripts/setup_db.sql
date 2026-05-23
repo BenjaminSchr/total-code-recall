@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS _index_meta (
     embedding_model VARCHAR(100)
 );
 
+-- Grant table permissions (needed for Option B / BYO pgvector setups)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'code_index_user') THEN
+        GRANT ALL ON ALL TABLES IN SCHEMA public TO code_index_user;
+        RAISE NOTICE 'Granted table permissions to code_index_user';
+    END IF;
+END $$;
+
 -- Project tables are created dynamically by /code-onboard.
 -- Template for reference:
 --

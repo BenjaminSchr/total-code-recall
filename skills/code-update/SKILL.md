@@ -72,6 +72,8 @@ raw_name = "<result of basename command>"
 project_name = raw_name.lower()
 project_name = project_name.replace("-", "_")
 project_name = re.sub(r"[^a-z0-9_]", "", project_name)
+if project_name and project_name[0].isdigit():
+    project_name = "p_" + project_name
 ```
 
 Also extract the current HEAD commit hash and commit message:
@@ -652,12 +654,17 @@ cur = conn.cursor()
 # NOTE: No full DELETE here — Step 4 already selectively deleted entities
 # for changed/deleted files. We only INSERT entities for files_to_reindex.
 
-# --- INSERT entities and collect name->id map ---
-# Key format: "file_path::name" to avoid collisions (e.g. multiple __init__ functions)
-name_to_id = {}  # "file_path::entity_name" -> db id
-# Also keep a bare name lookup for cross-file call resolution
-bare_name_to_id = {}  # "entity_name" -> db id (last wins, best-effort)
+# --- Pre-load existing entity IDs for cross-file call resolution ---
+# Without this, functions in unchanged files are invisible to relation lookups
+name_to_id = {}
+bare_name_to_id = {}
+cur.execute(f"SELECT id, name, file_path FROM {PROJECT_NAME}_entities")
+for row in cur.fetchall():
+    eid, ename, efp = row
+    name_to_id[f"{efp}::{ename}"] = eid
+    bare_name_to_id[ename] = eid
 
+# --- INSERT new entities and update name maps ---
 INSERT_ENTITY = f"""
 INSERT INTO {PROJECT_NAME}_entities (type, name, file_path, line_start, line_end, parent_id)
 VALUES (%s, %s, %s, %s, %s, %s)
