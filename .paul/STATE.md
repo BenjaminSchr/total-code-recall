@@ -32,5 +32,19 @@
 ## Accepted Risks
 - tcr_index.py duplicated in onboard + update (drift risk)
 
-## Next: Relational Layer (W5-W7)
-Plan saved. Not yet started.
+## Relational Layer (feature/relational-layer)
+
+### Wave 5 — Phase 1: AST Layer
+| W5-T1 | Entity + relation tables in onboard | TODO |
+| W5-T2 | AST parsing step in onboard | TODO |
+| W5-T3 | Entity/relation cleanup in update | TODO |
+| W5-T4 | code-overview skill | TODO |
+
+### Wave 6 — Phase 2: Hierarchical Summaries
+| W6-T1 | Summaries table in onboard | TODO |
+| W6-T2 | File-level summaries | TODO |
+| W6-T3 | Module + repo summaries | TODO |
+
+### Wave 7 — Phase 3: Hybrid Query
+| W7-T1 | code-explain skill | TODO |
+| W7-T2 | Update consolidation + README | TODO |
