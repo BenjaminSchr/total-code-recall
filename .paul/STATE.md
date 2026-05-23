@@ -7,10 +7,10 @@
 ### Wave 1 — Plugin Scaffold + DB Setup
 | Task | Description | Status |
 |------|-------------|--------|
-| W1-T1 | Create plugin.json | TODO |
-| W1-T2 | Create .env.example + .gitignore | TODO |
-| W1-T3 | Create setup_db.sql | TODO |
-| W1-T4 | Create docker-compose.yaml | TODO |
+| W1-T1 | Create plugin.json | DONE |
+| W1-T2 | Create .env.example + .gitignore | DONE |
+| W1-T3 | Create setup_db.sql | DONE |
+| W1-T4 | Create docker-compose.yaml | DONE |
 
 ### Wave 2 — Skills
 | Task | Description | Status |

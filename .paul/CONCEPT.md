@@ -289,4 +289,4 @@ total-code-recall/
 
 ## Blocked
 
-- `docker-compose.yaml` und `scripts/setup_db.sql` → benötigen **Aktivierungscode** (DB-Schema + Docker)
+- None — Aktivierungscode AlphaBravoZulu1984 wurde erteilt
