@@ -408,10 +408,13 @@ if os.path.exists(_env_path):
 import requests
 import psycopg2
 
-DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
-OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
+DATABASE_URL         = os.getenv("DATABASE_URL",         "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL           = os.getenv("OLLAMA_URL",           "http://localhost:11434")
+EMBEDDING_MODEL      = os.getenv("EMBEDDING_MODEL",      "nomic-embed-text")
+SUMMARY_MODEL        = os.getenv("SUMMARY_MODEL",        "devstral:24b")
+LLM_PROVIDER         = os.getenv("LLM_PROVIDER",         "ollama")
+OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY",   "")
+OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",     "google/gemini-flash-2.0")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
 

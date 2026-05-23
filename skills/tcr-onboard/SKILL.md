@@ -674,10 +674,13 @@ if os.path.exists(_env_path):
 import requests
 import psycopg2
 
-DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
-OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
+DATABASE_URL         = os.getenv("DATABASE_URL",         "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL           = os.getenv("OLLAMA_URL",           "http://localhost:11434")
+EMBEDDING_MODEL      = os.getenv("EMBEDDING_MODEL",      "nomic-embed-text")
+SUMMARY_MODEL        = os.getenv("SUMMARY_MODEL",        "devstral:24b")
+LLM_PROVIDER         = os.getenv("LLM_PROVIDER",         "ollama")
+OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY",   "")
+OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",     "google/gemini-flash-2.0")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
 
@@ -696,20 +699,37 @@ VALUES
 """
 
 def generate_summary(code_text):
-    """Call devstral via Ollama generate API to produce a summary."""
+    """Generate a summary via OpenRouter or Ollama depending on LLM_PROVIDER."""
     prompt = (
         "You are a code documentation assistant. "
         "Write a concise 2-3 sentence summary of what the following code does. "
         "Focus on purpose and behavior, not syntax.\n\n"
         f"```\n{code_text[:3000]}\n```"
     )
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["response"].strip()
+    if LLM_PROVIDER == "openrouter":
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": OPENROUTER_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 200
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    else:
+        resp = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()["response"].strip()
 
 def get_embedding(text):
     """Call embedding model via Ollama embed API."""

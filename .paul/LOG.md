@@ -94,3 +94,13 @@
   - BUG-2 (LOW): STATE.md + LOG.md not updated → fixed
   - BUG-3 (LOW): version mismatch (0.1.0 vs v0.2.0) → plugin.json bumped to 0.2.0
 - Wave Fix: all 3 bugs fixed directly on wave/W9-config-info
+
+### Wave 10 — Provider Switch (2026-05-23)
+- W10-T1: 3-layer config loader added to all 5 SKILL.md files — DONE
+- W10-T2: OpenRouter provider branch added to tcr-onboard — DONE
+- W10-T3: OpenRouter provider branch added to tcr-update — DONE
+- Wave Review: FAIL (3 bugs found)
+  - BUG-1 (HIGH): tcr-onboard Step 6 sub-script generate_summary() used undefined LLM_PROVIDER → fixed
+  - BUG-2 (HIGH): tcr-update Step 5b sub-script generate_summary() used undefined LLM_PROVIDER → fixed
+  - BUG-3 (LOW): STATE.md Wave 10 not updated → fixed
+- Wave Fix: all 3 bugs fixed on wave/W10-provider-switch

@@ -64,10 +64,10 @@
 | W9-T2 | Create skills/tcr-info/SKILL.md (config + projects + commands) | DONE |
 | W9-T3 | Update plugin.json — register tcr-config + tcr-info (7 skills) | DONE |
 
-### Wave 10 — Provider Switch
-| W10-T1 | Add 3-layer config loader to all 5 SKILL.md embedded scripts | TODO |
-| W10-T2 | Add OpenRouter LLM provider in tcr-onboard SKILL.md | TODO |
-| W10-T3 | Add OpenRouter LLM provider in tcr-update SKILL.md | TODO |
+### Wave 10 — Provider Switch ✓ DONE
+| W10-T1 | Add 3-layer config loader to all 5 SKILL.md embedded scripts | DONE |
+| W10-T2 | Add OpenRouter LLM provider in tcr-onboard SKILL.md | DONE |
+| W10-T3 | Add OpenRouter LLM provider in tcr-update SKILL.md | DONE |
 
 ### Wave 11 — Parallel + Model List
 | W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | TODO |
