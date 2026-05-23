@@ -5,7 +5,7 @@ description: Index a Git project into pgvector for semantic code search. Discove
 
 # /code-onboard — Skill Instructions
 
-You are executing the **code-onboard** skill. Follow these 8 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **code-onboard** skill. Follow these 9 steps in order. Do not skip any step. At each step, report what you are doing.
 
 ---
 
@@ -793,7 +793,113 @@ Report: `"Indexed {len(chunks)} chunks ({len(chunks)*2} rows inserted)."`
 
 ---
 
-## Step 7: Update _index_meta
+## Step 7: Generate Hierarchical Summaries
+
+**Goal:** For each indexed file, aggregate its chunk-level summaries into a single file-level summary (via devstral), embed it, and store it in the `_summaries` table with `level='file'`.
+
+Write this entire script to `/tmp/tcr_build_summaries.py` and run it with `python3 /tmp/tcr_build_summaries.py`:
+
+```python
+import os, sys
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+import requests
+import psycopg2
+
+DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
+SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+PROJECT_NAME    = os.environ["TCR_PROJECT"]
+
+conn = psycopg2.connect(DATABASE_URL)
+cur  = conn.cursor()
+
+# Get all distinct file paths that have chunk summaries
+cur.execute(f"SELECT DISTINCT file_path FROM {PROJECT_NAME} WHERE type = 'summary'")
+file_paths = [row[0] for row in cur.fetchall()]
+
+count = 0
+for file_path in file_paths:
+    # Collect all chunk summaries for this file, ordered by line_start
+    cur.execute(
+        f"SELECT content FROM {PROJECT_NAME} WHERE file_path = %s AND type = 'summary' ORDER BY line_start",
+        (file_path,)
+    )
+    chunk_summaries = [row[0] for row in cur.fetchall()]
+    if not chunk_summaries:
+        continue
+
+    concatenated = "\n\n".join(chunk_summaries)
+
+    # Generate file-level summary via devstral
+    try:
+        resp = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": SUMMARY_MODEL,
+                "prompt": f"Summarize this file's purpose and key components in 2-3 sentences:\n\n{concatenated}",
+                "stream": False,
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        file_summary = resp.json()["response"].strip()
+    except Exception as e:
+        print(f"  WARN: summary failed for {file_path}: {e} — skipping")
+        continue
+
+    # Embed the file summary
+    try:
+        embed_resp = requests.post(
+            f"{OLLAMA_URL}/api/embed",
+            json={"model": EMBEDDING_MODEL, "input": file_summary},
+            timeout=60,
+        )
+        embed_resp.raise_for_status()
+        vec = embed_resp.json()["embeddings"][0]
+    except Exception as e:
+        print(f"  WARN: embedding failed for {file_path}: {e} — skipping")
+        continue
+
+    vec_str = "[" + ",".join(str(x) for x in vec) + "]"
+
+    cur.execute(
+        f"INSERT INTO {PROJECT_NAME}_summaries (level, scope, content, embedding) VALUES ('file', %s, %s, %s::vector)",
+        (file_path, file_summary, vec_str)
+    )
+    count += 1
+    print(f"  [{count}] {file_path}", flush=True)
+
+conn.commit()
+cur.close()
+conn.close()
+print(f"SUMMARIES_OK: {count} file summaries generated")
+```
+
+Run it with:
+
+```bash
+TCR_PROJECT="{project_name}" python3 /tmp/tcr_build_summaries.py
+```
+
+- If output ends with `SUMMARIES_OK`: continue.
+- If the script exits with a non-zero code: print the error and **stop**.
+
+Report: `"Generated {count} file-level summaries in {project_name}_summaries."`
+
+---
+
+## Step 8: Update _index_meta
 
 **Goal:** Record the HEAD commit hash, chunk count, and embedding model in `_index_meta`.
 
@@ -858,7 +964,7 @@ Report: `"_index_meta updated for project '{project_name}'."`
 
 ---
 
-## Step 8: Report
+## Step 9: Report
 
 **Goal:** Print a final summary to the user.
 
