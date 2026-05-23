@@ -143,3 +143,15 @@
 - STATE.md updated: phase → V2 Wave 14 IN PROGRESS
 - LOG.md updated
 - Proceeding to Wave 14 — Test Suite
+
+### Wave 14 — Test Suite (2026-05-23)
+- W14-T1: tests/conftest.py + tests/test_sanitize.py — 10 tests, all PASS — DONE
+- W14-T2: tests/test_config.py — 7 tests, all PASS — DONE
+- W14-T3: tests/test_db.py — 8 integration tests, SKIP cleanly without DB — DONE
+- W14-T4: tests/test_e2e.py — 5 E2E tests, SKIP cleanly without Ollama/DB — DONE
+- Full suite: 17 passed, 13 skipped, 0 errors
+- Wave Review: FAIL (3 bugs)
+  - BUG-001 (HIGH): sanitize_project_name diverged from SKILL.md (replace vs strip, p_ prefix vs strip digits) — fixed
+  - BUG-002 (LOW): STATE.md not updated — fixed
+  - BUG-003 (LOW): test count doc mismatch — updated STATE.md counts
+- Wave Fix: committed directly on wave/W14-test-suite
