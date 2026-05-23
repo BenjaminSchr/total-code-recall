@@ -26,6 +26,7 @@ At the start, read these from the environment:
 
 ```python
 import os
+import json
 # Load .env file if present
 _env_path = os.path.join(os.getcwd(), ".env")
 if not os.path.exists(_env_path):
@@ -37,12 +38,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
-DATABASE_URL   = os.getenv("DATABASE_URL",   "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
-OLLAMA_URL     = os.getenv("OLLAMA_URL",     "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL  = os.getenv("SUMMARY_MODEL",  "devstral:24b")
-CHUNK_SIZE     = int(os.getenv("CHUNK_SIZE",   "50"))
-CHUNK_OVERLAP  = int(os.getenv("CHUNK_OVERLAP", "15"))
+# --- Config Loader (3-layer) ---
+# Layer 1: project .env (already loaded above)
+# Layer 2: global config.json
+_GLOBAL_CONFIG = {}
+_CONFIG_PATH = os.path.expanduser("~/.config/total-code-recall/config.json")
+if os.path.exists(_CONFIG_PATH):
+    with open(_CONFIG_PATH) as _f:
+        _GLOBAL_CONFIG = json.load(_f)
+
+def _cfg(env_key, config_key, default):
+    """Priority: env var > global config > default"""
+    return os.environ.get(env_key) or _GLOBAL_CONFIG.get(config_key) or default
+
+DATABASE_URL      = _cfg("DATABASE_URL",    "database_url",         "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL        = _cfg("OLLAMA_URL",      "ollama_url",           "http://localhost:11434")
+EMBEDDING_MODEL   = _cfg("EMBEDDING_MODEL", "embedding_model",      "nomic-embed-text")
+SUMMARY_MODEL     = _cfg("SUMMARY_MODEL",   "ollama_summary_model", "devstral:24b")
+CHUNK_SIZE        = int(_cfg("CHUNK_SIZE",  "chunk_size",           "50"))
+CHUNK_OVERLAP     = int(_cfg("CHUNK_OVERLAP","chunk_overlap",       "15"))
 ```
 
 ---
