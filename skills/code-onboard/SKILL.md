@@ -367,7 +367,7 @@ INSERT INTO {PROJECT_NAME}
     (chunk_id, type, file_path, line_start, line_end, content,
      commit_hash, commit_message, embedding_model, embedding)
 VALUES
-    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)
 """
 
 def generate_summary(code_text):
@@ -425,13 +425,17 @@ for i, chunk in enumerate(chunks):
         print(f"    WARN: code embedding failed: {e} — skipping chunk")
         continue
 
+    # Convert list to pgvector string format
+    summary_vec_str = "[" + ",".join(str(x) for x in summary_vec) + "]"
+    code_vec_str    = "[" + ",".join(str(x) for x in code_vec) + "]"
+
     # --- Insert summary row ---
     cur.execute(INSERT_SQL, (
         chunk["chunk_id"], "summary",
         chunk["file_path"], chunk["line_start"], chunk["line_end"],
         summary_text,
         HEAD_HASH, HEAD_MESSAGE, EMBEDDING_MODEL,
-        summary_vec,
+        summary_vec_str,
     ))
 
     # --- Insert code row ---
@@ -440,7 +444,7 @@ for i, chunk in enumerate(chunks):
         chunk["file_path"], chunk["line_start"], chunk["line_end"],
         chunk["content"],
         HEAD_HASH, HEAD_MESSAGE, EMBEDDING_MODEL,
-        code_vec,
+        code_vec_str,
     ))
 
     # Commit every 10 chunks to avoid long transactions
