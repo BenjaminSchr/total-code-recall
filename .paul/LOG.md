@@ -76,3 +76,11 @@
 - 5 DB Tables/project: chunks, entities, relations, summaries, _index_meta
 - Total: 24 tasks across 7 waves, all DONE
 - Pushed to GitHub: dev branch
+
+### Wave 8 — Rename (2026-05-23)
+- W8-T2: SKILL.md frontmatter + plugin.json names code-* → tcr-* — DONE
+- W8-T3: README.md command references code-* → tcr-* — DONE
+- W8-T4: Verification — all 3 checks PASS — DONE
+- Wave Review: FAIL (2 issues: STATE.md outdated + stale task files)
+- Wave Fix: Fixed STATE.md + removed stale TASK_W8-T*.md files
+- Merged wave/W8-rename → dev, tagged W8_done
