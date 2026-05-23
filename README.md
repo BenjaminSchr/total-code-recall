@@ -76,6 +76,29 @@ ollama pull devstral:24b
 claude plugin add github:BenjaminSchr/total-code-recall
 ```
 
+### Option C — Cloud Setup (Zero Local Infrastructure)
+
+Run total-code-recall entirely in the cloud — no Docker, no Ollama required.
+
+**Requirements:**
+- OpenRouter account + API key (https://openrouter.ai)
+- Supabase project + connection string (https://supabase.com, free tier works)
+- Claude Code with this plugin installed
+
+**Setup:**
+1. Install the plugin: `claude plugin add github:BenjaminSchr/total-code-recall`
+2. Run `/tcr-config`
+3. LLM Provider → Cloud (OpenRouter) → paste API key → pick model
+4. Embedding Provider → Cloud (OpenRouter) → pick embedding model (use `google/text-embedding-004` for 768-dim compatibility)
+5. Database → Cloud (Supabase) → paste pooler connection string (Session mode)
+
+**Finding your Supabase connection string:**
+Supabase dashboard → Settings → Database → Connection string → Session mode
+
+**Onboard time:** ~2-5 minutes for a 10k line project (parallel OpenRouter calls).
+
+**Cost estimate:** ~$0.001 per summary, ~$0.0001 per embedding. 500-chunk project ≈ $0.05.
+
 ---
 
 ## Usage
