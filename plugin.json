@@ -23,6 +23,11 @@
       "name": "code-overview",
       "path": "skills/code-overview/SKILL.md",
       "description": "Structural overview of indexed codebase via entity/relation graph"
+    },
+    {
+      "name": "code-explain",
+      "path": "skills/code-explain/SKILL.md",
+      "description": "Hybrid code search with entity graph and hierarchical summaries"
     }
   ]
 }
