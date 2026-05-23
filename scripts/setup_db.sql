@@ -71,3 +71,14 @@ CREATE TABLE IF NOT EXISTS _index_meta (
 -- CREATE INDEX ON {project_name}_relations (from_id);
 -- CREATE INDEX ON {project_name}_relations (to_id);
 -- CREATE INDEX ON {project_name}_relations (type);
+--
+-- CREATE TABLE {project_name}_summaries (
+--     id SERIAL PRIMARY KEY,
+--     level VARCHAR(10) NOT NULL CHECK (level IN ('file','module','repo')),
+--     scope TEXT NOT NULL,
+--     content TEXT NOT NULL,
+--     embedding vector(768),
+--     indexed_at TIMESTAMP DEFAULT NOW()
+-- );
+-- CREATE INDEX ON {project_name}_summaries (level);
+-- CREATE INDEX ON {project_name}_summaries USING hnsw (embedding vector_cosine_ops);

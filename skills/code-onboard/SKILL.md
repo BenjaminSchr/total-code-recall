@@ -218,6 +218,17 @@ CREATE TABLE IF NOT EXISTS {PROJECT_NAME}_relations (
 CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_from_idx ON {PROJECT_NAME}_relations (from_id);
 CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_to_idx ON {PROJECT_NAME}_relations (to_id);
 CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_type_idx ON {PROJECT_NAME}_relations (type);
+
+CREATE TABLE IF NOT EXISTS {PROJECT_NAME}_summaries (
+    id SERIAL PRIMARY KEY,
+    level VARCHAR(10) NOT NULL CHECK (level IN ('file','module','repo')),
+    scope TEXT NOT NULL,
+    content TEXT NOT NULL,
+    embedding vector(768),
+    indexed_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_summaries_level_idx ON {PROJECT_NAME}_summaries (level);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_summaries_embedding_idx ON {PROJECT_NAME}_summaries USING hnsw (embedding vector_cosine_ops);
 """
 
 try:
@@ -697,6 +708,7 @@ cur  = conn.cursor()
 
 # Clear existing data for idempotent re-onboard
 cur.execute(f"DELETE FROM {PROJECT_NAME}")
+cur.execute(f"DELETE FROM {PROJECT_NAME}_summaries")
 conn.commit()
 print(f"CLEARED: Removed existing data from {PROJECT_NAME}")
 
