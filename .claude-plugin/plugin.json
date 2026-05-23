@@ -1,0 +1,8 @@
+{
+  "name": "total-code-recall",
+  "description": "Semantic code search with local embeddings. Index, update, search, overview, and explain your codebase — 100% local via Ollama + pgvector.",
+  "author": {
+    "name": "Benjamin Schroedter",
+    "email": "benjaminschroedter@gmx.de"
+  }
+}

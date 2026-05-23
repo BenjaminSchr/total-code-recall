@@ -1,0 +1,22 @@
+{
+  "name": "total-code-recall-marketplace",
+  "owner": {
+    "name": "Benjamin Schroedter",
+    "email": "benjaminschroedter@gmx.de"
+  },
+  "metadata": {
+    "description": "Local semantic code search plugin for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "total-code-recall",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/BenjaminSchr/total-code-recall.git"
+      },
+      "description": "Semantic code search with local embeddings via Ollama + pgvector",
+      "version": "0.1.0"
+    }
+  ]
+}
