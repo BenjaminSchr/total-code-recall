@@ -205,7 +205,7 @@ Build the work lists:
 - `files_to_reindex` = added paths + modified paths + new paths of renamed files that still exist on disk
 
 ```python
-files_to_delete  = deleted + [old for old, _new in renamed]
+files_to_delete  = deleted + modified + [old for old, _new in renamed]
 files_to_reindex = added + modified + [new for _old, new in renamed if _os.path.isfile(new)]
 ```
 
@@ -280,7 +280,14 @@ CHUNK_SIZE    = int(os.getenv("CHUNK_SIZE", "50"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "15"))
 
 chunks = []
-chunk_id = 0
+
+# Get max existing chunk_id to avoid collisions
+import psycopg2 as _pg
+_conn = _pg.connect(os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db"))
+_cur = _conn.cursor()
+_cur.execute(f"SELECT COALESCE(MAX(chunk_id), -1) FROM {os.environ['TCR_PROJECT']}")
+chunk_id = _cur.fetchone()[0] + 1
+_conn.close()
 
 for file_path in files_to_reindex:
     try:
