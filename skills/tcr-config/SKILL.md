@@ -48,8 +48,51 @@ Enter 1 or 2:
 
 - If `[2]` Cloud:
   - Ask: `OpenRouter API key (sk-or-...):`
-  - Ask: `OpenRouter model [default: google/gemini-flash-2.0]:`
-  - Set: `cfg["llm_provider"] = "openrouter"`, `cfg["openrouter_api_key"] = <key>`, `cfg["openrouter_model"] = <model>`
+  - After key is entered, fetch the live model list and show numbered selection:
+
+```python
+def fetch_openrouter_models(api_key):
+    """Fetch and filter model list from OpenRouter."""
+    import requests
+    ALLOWED_PROVIDERS = ("anthropic/", "google/", "openai/", "qwen/", "kimi/")
+    try:
+        resp = requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10
+        )
+        resp.raise_for_status()
+        models = resp.json().get("data", [])
+        filtered = [
+            m for m in models
+            if any(m["id"].startswith(p) for p in ALLOWED_PROVIDERS)
+        ]
+        filtered.sort(key=lambda m: m["id"])
+        return filtered
+    except Exception as e:
+        print(f"Could not fetch model list: {e}")
+        return []
+
+# Show numbered model list
+models = fetch_openrouter_models(api_key)
+if models:
+    print("\nAvailable models:")
+    for i, m in enumerate(models[:30], 1):  # cap at 30
+        print(f"  [{i:2d}] {m['id']}")
+    print(f"\n  Enter number (1-{min(len(models),30)}) or type a model ID directly:")
+    choice = input("> ").strip()
+    if choice.isdigit() and 1 <= int(choice) <= min(len(models), 30):
+        selected_model = models[int(choice)-1]["id"]
+    else:
+        selected_model = choice if choice else "google/gemini-flash-2.0"
+else:
+    # Fallback: manual entry
+    selected_model = input("Enter model ID (e.g. google/gemini-flash-2.0): ").strip()
+    if not selected_model:
+        selected_model = "google/gemini-flash-2.0"
+```
+
+  - Set: `cfg["llm_provider"] = "openrouter"`, `cfg["openrouter_api_key"] = <key>`, `cfg["openrouter_model"] = selected_model`
 
 ---
 

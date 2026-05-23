@@ -104,3 +104,9 @@
   - BUG-2 (HIGH): tcr-update Step 5b sub-script generate_summary() used undefined LLM_PROVIDER → fixed
   - BUG-3 (LOW): STATE.md Wave 10 not updated → fixed
 - Wave Fix: all 3 bugs fixed on wave/W10-provider-switch
+
+### Wave 11 — Parallel + Model List (2026-05-23)
+- W11-T1: ThreadPoolExecutor + exponential backoff retry in tcr-onboard + tcr-update — DONE
+- W11-T2: Live OpenRouter model list (5-provider filter) in tcr-config — DONE
+- Wave Review: FAIL (1 issue: STATE.md not updated → fixed)
+- Wave Fix: STATE.md + LOG.md updated
