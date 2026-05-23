@@ -54,8 +54,25 @@
 - STATE.md updated
 - 3 open issues documented: German output, .env loading, tcr_index duplication
 
-### Next Steps
-- Wave for open issues (German→English, .env loading)
-- W3: README + FAQ
-- Deep review with Opus agent
-- Final UNIFY
+### APPLY Phase — Wave 2.6 (Critical Bugfixes)
+- W2.6-T1 to T5: All 5 bugs fixed (path mismatch, vector type, requirements, rerun dedup, shell injection)
+- Wave Review: PASS
+- Merged to dev, tagged W2.6_done
+
+### APPLY Phase — Wave 3 (README)
+- W3-T1: README.md with FAQ — DONE (270 lines)
+- Merged to dev, tagged W3_done
+- V1 COMPLETE, pushed to GitHub
+
+### APPLY Phase — Relational Layer (feature/relational-layer)
+- W5 (AST Layer): 4 tasks DONE, Opus Review found 3 bugs → fixed
+- W6 (Hierarchical Summaries): 3 tasks DONE, Opus Review PASS (+1 idempotency fix)
+- W7 (Hybrid Query): 2 tasks DONE, Opus Review found 3 bugs → fixed
+- Final parallel Opus Code Review (3 agents): found 10 more bugs (4 HIGH, 6 MEDIUM) → all fixed
+- Merged to dev, tagged relational-layer_done
+
+### Final State
+- 5 Skills: code-onboard, code-update, code-search, code-overview, code-explain
+- 5 DB Tables/project: chunks, entities, relations, summaries, _index_meta
+- Total: 24 tasks across 7 waves, all DONE
+- Pushed to GitHub: dev branch
