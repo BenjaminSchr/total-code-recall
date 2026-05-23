@@ -1,6 +1,6 @@
 # STATE — total-code-recall
 
-## Current Phase: APPLY (Tasks created, awaiting execution)
+## Current Phase: APPLY (Wave 1 DONE, Wave 2 next)
 
 ## Tasks
 
