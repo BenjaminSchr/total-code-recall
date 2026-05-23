@@ -21,6 +21,7 @@ Three commands. Zero API keys. All local.
 - [Ollama](https://ollama.ai) running locally (default: `http://localhost:11434`)
 - PostgreSQL with pgvector extension (see Option A or B below)
 - Python 3.10+ with `psycopg2-binary` and `requests` available to Claude Code
+- `tree-sitter` and `tree-sitter-languages` (optional — enables structural analysis via `/code-overview` and `/code-explain`)
 
 ### Option A — Docker (recommended)
 
@@ -34,15 +35,18 @@ cd total-code-recall
 # 2. Copy the config
 cp .env.example .env
 
-# 3. Start the pgvector container
+# 3. Install Python dependencies
+pip install -r requirements.txt
+
+# 4. Start the pgvector container
 #    setup_db.sql runs automatically on first start
 docker compose up -d
 
-# 4. Pull the required Ollama models
+# 5. Pull the required Ollama models
 ollama pull nomic-embed-text
 ollama pull devstral:24b
 
-# 5. Install the plugin
+# 6. Install the plugin
 claude plugin add github:BenjaminSchr/total-code-recall
 ```
 
@@ -179,6 +183,31 @@ The `summary` type contains the AI-generated description. The `code` type contai
 
 ---
 
+### `/code-overview` — Structural overview
+
+Shows your project's structure: classes, functions, imports, and call relationships. No LLM needed — pure database queries.
+
+```
+/code-overview                    # Full project overview
+/code-overview MyClassName        # Show callers and callees for a specific symbol
+```
+
+Requires tree-sitter to have been installed when `/code-onboard` was run. If the entity tables are empty, the skill reports that structural analysis is unavailable.
+
+---
+
+### `/code-explain "query"` — Hybrid search
+
+Combines vector similarity search with structural graph analysis. Returns code chunks enriched with entity context, callers/callees, and file summaries.
+
+```
+/code-explain "how does authentication work"
+```
+
+Differs from `/code-search` in that results are augmented with structural context: which functions call the matched code, what the file summary says, and which entities are involved. Requires tree-sitter to have been installed when `/code-onboard` was run; without it, falls back to plain vector search.
+
+---
+
 ## Configuration
 
 Copy `.env.example` to `.env` and adjust as needed:
@@ -204,37 +233,50 @@ Source file
     ▼
 Fixed-size chunks (50 lines, 15-line overlap)
     │
-    ▼
-devstral:24b  ──►  2-3 sentence summary
+    ├──► devstral:24b  ──►  2-3 sentence summary
+    │        │
+    │        ▼
+    │    nomic-embed-text
+    │        ├──►  embed(summary)  ──►  row type="summary"  ──►  pgvector
+    │        └──►  embed(code)     ──►  row type="code"     ──►  pgvector
     │
-    ▼
-nomic-embed-text
-    ├──►  embed(summary)  ──►  row type="summary"  ──►  pgvector
-    └──►  embed(code)     ──►  row type="code"     ──►  pgvector
-                                                          │
-                                                          ▼
-/code-search "query"
-    │
-    ▼
-nomic-embed-text  ──►  embed(query)
-    │
-    ▼
-SELECT DISTINCT ON (chunk_id)
-   1 - (embedding <=> query_vec) AS similarity
-FROM project_table
-ORDER BY similarity DESC LIMIT 10
+    └──► tree-sitter AST (optional)
+             ├──►  entities (file, class, function, method, import)  ──►  _entities table
+             └──►  relations (calls, imports, contains)              ──►  _relations table
+
+Hierarchical summaries (built after chunking):
+    file chunks  ──►  file-level summary  ──►  _summaries (level='file')
+    file summaries  ──►  module summary   ──►  _summaries (level='module')
+    module summaries  ──►  repo summary   ──►  _summaries (level='repo')
+
+/code-search "query"  ──►  vector search  ──►  top 10 chunks by cosine similarity
+
+/code-explain "query"  ──►  vector search + graph lookup
+    ├──►  matched chunks
+    ├──►  entity context (callers, callees)
+    └──►  file/module/repo summary
+
+/code-overview  ──►  pure DB queries on _entities + _relations (no LLM)
 ```
 
 Each chunk produces two rows in the database: one for the AI summary, one for the raw code. The search query is embedded with the same model and compared against both. Deduplication ensures a chunk appears at most once in the results, with the best-matching row winning.
 
-The HNSW index on the embedding column makes queries fast even on large codebases.
+The relational layer (entity and relation tables, built via tree-sitter AST parsing) is optional and non-blocking: if tree-sitter is not installed, `/code-onboard` skips it with a warning and the vector search pipeline continues normally. Installing tree-sitter unlocks `/code-overview` and the graph-augmented `/code-explain`.
+
+The HNSW index on the embedding column makes vector queries fast even on large codebases.
 
 ---
 
 ## FAQ
 
+**What is the relational layer?**
+When tree-sitter is installed, `/code-onboard` parses Python files to extract a structural model of the codebase: entities (files, classes, functions, methods, imports) and relations between them (calls, imports, contains). This data is stored in `_entities` and `_relations` tables alongside the vector index. The relational layer powers `/code-overview` (structure browsing) and enriches `/code-explain` results with caller/callee context. Without it, vector search still works normally.
+
+**Do I need tree-sitter?**
+No. It is optional. Without it, `/code-onboard` and `/code-update` work fully for vector search (`/code-search`). Installing it (`pip install tree-sitter tree-sitter-languages`) adds structural analysis: entity/relation extraction, the `/code-overview` command, and graph-augmented results in `/code-explain`.
+
 **What languages are supported?**
-Any text file. Chunking is fixed-size and language-agnostic — no parser required. The default allowlist covers: `.py`, `.html`, `.sql`, `.js`, `.css`, `.yaml`, `.json`, `.toml`, `.md`, `.sh`.
+Any text file. Chunking is fixed-size and language-agnostic — no parser required. The default allowlist covers: `.py`, `.html`, `.sql`, `.js`, `.css`, `.yaml`, `.json`, `.toml`, `.md`, `.sh`. Structural analysis (tree-sitter) currently covers Python only.
 
 **Do I need an API key?**
 No. Everything runs locally via Ollama. No data leaves your machine.
@@ -258,10 +300,11 @@ Yes. Each project gets its own table named after the Git repo (e.g., `my_project
 
 ## Requirements
 
-- **Git** — all three skills require a Git repository (`git init` if needed)
+- **Git** — all five skills require a Git repository (`git init` if needed)
 - **Ollama** — local LLM server for summaries and embeddings (`ollama serve`)
 - **PostgreSQL 14+ with pgvector** — via Docker (`docker compose up -d`) or your own instance
 - **Python 3.10+** — with `psycopg2-binary` and `requests` (`pip install psycopg2-binary requests`)
+- **tree-sitter and tree-sitter-languages** (optional) — enables structural analysis for `/code-overview` and `/code-explain` (`pip install tree-sitter tree-sitter-languages`)
 
 ---
 
