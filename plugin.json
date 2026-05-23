@@ -5,27 +5,27 @@
   "author": "BenjaminSchr",
   "skills": [
     {
-      "name": "code-onboard",
+      "name": "tcr-onboard",
       "path": "skills/tcr-onboard/SKILL.md",
       "description": "Index a project's codebase into pgvector for semantic search"
     },
     {
-      "name": "code-update",
+      "name": "tcr-update",
       "path": "skills/tcr-update/SKILL.md",
       "description": "Update index with new commits since last onboard/update"
     },
     {
-      "name": "code-search",
+      "name": "tcr-search",
       "path": "skills/tcr-search/SKILL.md",
       "description": "Semantic search over indexed codebase"
     },
     {
-      "name": "code-overview",
+      "name": "tcr-overview",
       "path": "skills/tcr-overview/SKILL.md",
       "description": "Structural overview of indexed codebase via entity/relation graph"
     },
     {
-      "name": "code-explain",
+      "name": "tcr-explain",
       "path": "skills/tcr-explain/SKILL.md",
       "description": "Hybrid code search with entity graph and hierarchical summaries"
     }

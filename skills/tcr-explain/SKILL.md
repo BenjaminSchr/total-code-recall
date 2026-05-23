@@ -1,15 +1,15 @@
 ---
-name: code-explain
+name: tcr-explain
 description: Hybrid code search combining vector similarity, entity graph traversal, and hierarchical file summaries. Returns enriched results with entity context, callers/callees, and file-level summaries alongside matching code chunks.
 ---
 
-# /code-explain — Skill Instructions
+# /tcr-explain — Skill Instructions
 
-You are executing the **code-explain** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-explain** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
 
-Usage: `/code-explain <query>`
+Usage: `/tcr-explain <query>`
 
-Example: `/code-explain "how does the authentication middleware work"`
+Example: `/tcr-explain "how does the authentication middleware work"`
 
 ---
 
@@ -157,10 +157,10 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_explain_meta.py
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /code-onboard again."` and **stop**.
-- `NO_ENTITIES` — print `"Entities table not found for '{project_name}'. Please run /code-onboard to index entities."` and **stop**.
-- `NO_SUMMARIES` — print `"Summaries table not found for '{project_name}'. Please run /code-onboard to generate summaries."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /tcr-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /tcr-onboard again."` and **stop**.
+- `NO_ENTITIES` — print `"Entities table not found for '{project_name}'. Please run /tcr-onboard to index entities."` and **stop**.
+- `NO_SUMMARIES` — print `"Summaries table not found for '{project_name}'. Please run /tcr-onboard to generate summaries."` and **stop**.
 - `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{chunk_count}` — extract `chunk_count` and continue.
 
@@ -174,7 +174,7 @@ Report: `"Index OK: {chunk_count} chunks, entities and summaries confirmed for '
 
 **Goal:** Convert the user's query text into a vector embedding using the same model as the index.
 
-The query text is whatever the user typed after `/code-explain`.
+The query text is whatever the user typed after `/tcr-explain`.
 
 Write this to `/tmp/tcr_embed_query.py` and run it with `python3 /tmp/tcr_embed_query.py`:
 
@@ -473,7 +473,7 @@ After the last result, print:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tip: Use /code-overview <symbol_name> to explore the full call graph for any entity shown above.
+Tip: Use /tcr-overview <symbol_name> to explore the full call graph for any entity shown above.
 ```
 
 Where:
@@ -499,7 +499,7 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Embedding model mismatch
 
 - If Step 2 returns `MODEL_MISMATCH`: the index was built with a different model. Searching with a different model produces meaningless results because the vector spaces are incompatible.
-- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/code-onboard` to rebuild the index with the new model.
+- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/tcr-onboard` to rebuild the index with the new model.
 
 ### DB connection failure
 
@@ -509,11 +509,11 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Missing tables
 
 - If Step 2 returns `NO_ENTITIES` or `NO_SUMMARIES`: the entity or summary tables have not been populated.
-- Run `/code-onboard` to index entities and generate summaries before using `/code-explain`.
+- Run `/tcr-onboard` to index entities and generate summaries before using `/tcr-explain`.
 
 ### Project not indexed
 
-- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/code-onboard` first to build the index before searching.
+- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/tcr-onboard` first to build the index before searching.
 
 ### Empty results
 

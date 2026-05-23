@@ -1,13 +1,13 @@
 ---
-name: code-overview
+name: tcr-overview
 description: Structural overview of indexed codebase via entity/relation graph. No LLM needed — pure SQL queries.
 ---
 
-# /code-overview — Skill Instructions
+# /tcr-overview — Skill Instructions
 
-You are executing the **code-overview** skill. Follow these 4 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-overview** skill. Follow these 4 steps in order. Do not skip any step. At each step, report what you are doing.
 
-Usage: `/code-overview` or `/code-overview <symbol_name>`
+Usage: `/tcr-overview` or `/tcr-overview <symbol_name>`
 
 - No argument: high-level structural overview (entity counts, top-level files/classes/functions, top imports)
 - With argument: recursive subgraph for that symbol (callers + callees, up to 2 hops)
@@ -131,7 +131,7 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_entities.py
 
 Parse the output:
 
-- `NOT_FOUND` — print `"No entities found. Run /code-onboard first."` and **stop**.
+- `NOT_FOUND` — print `"No entities found. Run /tcr-onboard first."` and **stop**.
 - `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `TABLE_OK` — continue.
 
@@ -302,8 +302,8 @@ TCR_PROJECT="{project_name}" TCR_SYMBOL="{symbol_name}" python3 /tmp/tcr_overvie
 
 Parse the output:
 
-- `NO_ENTITIES` — print `"No entities found. Run /code-onboard first."` and **stop**.
-- `SYMBOL_NOT_FOUND:{name}` — print `"Symbol '{name}' not found in project '{project_name}'. Check spelling or run /code-search to find the exact name."` and **stop**.
+- `NO_ENTITIES` — print `"No entities found. Run /tcr-onboard first."` and **stop**.
+- `SYMBOL_NOT_FOUND:{name}` — print `"Symbol '{name}' not found in project '{project_name}'. Check spelling or run /tcr-search to find the exact name."` and **stop**.
 - `QUERY_FAIL: ...` — print the error and **stop**.
 - `OK` — read results from `/tmp/tcr_overview_result.json` and continue to Step 4.
 
@@ -371,7 +371,7 @@ Finish with:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Tip: Run '/code-overview <symbol_name>' to see the call graph for a specific function or class.
+Tip: Run '/tcr-overview <symbol_name>' to see the call graph for a specific function or class.
 ```
 
 ### Mode 2 — Symbol Subgraph (with argument)
@@ -428,12 +428,12 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### No entities found
 
 - If Step 2 or Step 3 returns `NOT_FOUND` or `NO_ENTITIES`: the entities table either does not exist or is empty.
-- Solution: run `/code-onboard` to index the project first.
+- Solution: run `/tcr-onboard` to index the project first.
 
 ### Symbol not found
 
 - If Step 3 returns `SYMBOL_NOT_FOUND`: the symbol name does not match any entity in the index.
-- Try `/code-search <symbol_name>` to find the closest matching name.
+- Try `/tcr-search <symbol_name>` to find the closest matching name.
 - Symbol names are case-sensitive — check exact spelling.
 
 ### DB connection failure
@@ -443,4 +443,4 @@ Do not continue to the next step if a critical error occurred. Print the error c
 
 ### Empty structure
 
-- If type counts show entities but structure is empty: the relations table may not have `file → class/function` edges. This can happen if the project was onboarded with a version that did not index relation edges. Re-run `/code-onboard` to rebuild.
+- If type counts show entities but structure is empty: the relations table may not have `file → class/function` edges. This can happen if the project was onboarded with a version that did not index relation edges. Re-run `/tcr-onboard` to rebuild.

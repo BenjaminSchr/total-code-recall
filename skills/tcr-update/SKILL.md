@@ -1,11 +1,11 @@
 ---
-name: code-update
+name: tcr-update
 description: Incrementally update the pgvector index for a Git project. Reads last indexed commit from _index_meta, finds changed/added/deleted/renamed files since then, removes stale chunks, re-indexes changed files, and updates _index_meta with the new HEAD hash.
 ---
 
-# /code-update — Skill Instructions
+# /tcr-update — Skill Instructions
 
-You are executing the **code-update** skill. Follow these 7 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-update** skill. Follow these 7 steps in order. Do not skip any step. At each step, report what you are doing.
 
 ---
 
@@ -147,8 +147,8 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_meta.py
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding model has changed (was: {old_model}, now: {EMBEDDING_MODEL}). Please run /code-onboard again to fully re-index."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /tcr-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model has changed (was: {old_model}, now: {EMBEDDING_MODEL}). Please run /tcr-onboard again to fully re-index."` and **stop**.
 - `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{last_hash}` — extract `LAST_HASH` from the output and continue.
 
@@ -936,7 +936,7 @@ Total chunks in DB:   {chunk_count}
 Embedding model:      {EMBEDDING_MODEL}
 
 Commits processed: from {LAST_HASH[:8]} to {HEAD_HASH[:8]}
-Next step: use /code-search to semantically search your code.
+Next step: use /tcr-search to semantically search your code.
 ```
 
 ---
@@ -949,11 +949,11 @@ Do not continue to the next step if a critical error occurred. Print the error c
 
 ### Project not yet indexed
 
-- If Step 2 returns `NOT_INDEXED`: instruct the user to run `/code-onboard` first. Do not attempt to create the table or index — that is the onboard skill's responsibility.
+- If Step 2 returns `NOT_INDEXED`: instruct the user to run `/tcr-onboard` first. Do not attempt to create the table or index — that is the onboard skill's responsibility.
 
 ### Embedding model mismatch
 
-- If Step 2 returns `MODEL_MISMATCH`: the current `EMBEDDING_MODEL` env var differs from what was used when the index was built. Vectors are incomparable across models. The user must run `/code-onboard` to rebuild the index from scratch with the new model.
+- If Step 2 returns `MODEL_MISMATCH`: the current `EMBEDDING_MODEL` env var differs from what was used when the index was built. Vectors are incomparable across models. The user must run `/tcr-onboard` to rebuild the index from scratch with the new model.
 
 ### No changes since last index
 
