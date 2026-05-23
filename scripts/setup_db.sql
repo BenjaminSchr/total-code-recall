@@ -1,9 +1,22 @@
 -- total-code-recall: Database Setup
--- Run this once against your pgvector-enabled PostgreSQL:
---   psql -U code_index_user -d code_index_db -f scripts/setup_db.sql
+--
+-- Step 1: Run as superuser (extension + schema permissions):
+--   psql -U postgres -d code_index_db -f scripts/setup_db.sql
+--
+-- The vector extension requires superuser privileges.
+-- If you get "permission denied", run this file as your DB superuser.
 
--- Enable pgvector extension
+-- Enable pgvector extension (requires superuser)
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Grant schema permissions to the app user (if exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'code_index_user') THEN
+        GRANT ALL ON SCHEMA public TO code_index_user;
+        RAISE NOTICE 'Granted schema permissions to code_index_user';
+    END IF;
+END $$;
 
 -- Meta table: tracks indexing state per project
 CREATE TABLE IF NOT EXISTS _index_meta (
