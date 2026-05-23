@@ -62,6 +62,7 @@ OPENROUTER_API_KEY   = _cfg("OPENROUTER_API_KEY",    "openrouter_api_key",    ""
 OPENROUTER_MODEL     = _cfg("OPENROUTER_MODEL",      "openrouter_model",      "google/gemini-flash-2.0")
 PARALLEL_WORKERS     = int(_cfg("PARALLEL_WORKERS",  "parallel_workers",      "10"))
 EMBEDDING_PROVIDER   = _cfg("EMBEDDING_PROVIDER",    "embedding_provider",    "ollama")
+DB_PROVIDER          = _cfg("DB_PROVIDER",           "db_provider",           "local")
 ```
 
 ---
