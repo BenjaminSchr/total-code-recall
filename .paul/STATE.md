@@ -73,9 +73,9 @@
 | W11-T1 | ThreadPoolExecutor parallel OpenRouter calls in tcr-onboard + tcr-update | DONE |
 | W11-T2 | Live model list from OpenRouter API in tcr-config | DONE |
 
-### Wave 12 — Embedding Provider
-| W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | TODO |
-| W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | TODO |
+### Wave 12 — Embedding Provider ✓ DONE
+| W12-T1 | EMBEDDING_PROVIDER toggle in tcr-config + config.json | DONE |
+| W12-T2 | OpenRouter embedding calls in onboard/update/search/explain | DONE |
 
 ### Wave 13 — Supabase
 | W13-T1 | DB_PROVIDER toggle in tcr-config + Supabase connection handling | TODO |

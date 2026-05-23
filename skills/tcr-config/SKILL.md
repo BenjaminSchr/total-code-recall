@@ -115,12 +115,14 @@ if emb_choice == "2":
     # Reuse openrouter_api_key if already set in this session
     if not cfg.get("openrouter_api_key"):
         cfg["openrouter_api_key"] = input("OpenRouter API key (sk-or-...): ").strip()
-    print("OpenRouter embedding models (common choices):")
-    print("  openai/text-embedding-3-small")
-    print("  openai/text-embedding-3-large")
-    print("  google/text-embedding-004")
-    emb_model = input("Enter model ID [default: openai/text-embedding-3-small]: ").strip()
-    cfg["embedding_model"] = emb_model or "openai/text-embedding-3-small"
+    print("OpenRouter embedding models:")
+    print("  ⚠️  IMPORTANT: The default schema uses vector(768).")
+    print("     Only 768-dimensional models are compatible:")
+    print("  [1] google/text-embedding-004       (768 dims) ← RECOMMENDED")
+    print("  [2] openai/text-embedding-3-small   (1536 dims) — requires schema change")
+    print("  [3] openai/text-embedding-3-large   (3072 dims) — requires schema change")
+    emb_model = input("Enter model ID [default: google/text-embedding-004]: ").strip()
+    cfg["embedding_model"] = emb_model or "google/text-embedding-004"
 else:
     # Local Ollama embedding
     cfg["embedding_provider"] = "ollama"
