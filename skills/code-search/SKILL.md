@@ -25,6 +25,17 @@ At the start, read these from the environment:
 
 ```python
 import os
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
 DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
 OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
@@ -73,6 +84,17 @@ Write this to `/tmp/tcr_check_search_meta.py` and run it with `python3 /tmp/tcr_
 
 ```python
 import os, sys
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
 import psycopg2
 
 DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
@@ -133,6 +155,17 @@ Write this to `/tmp/tcr_embed_query.py` and run it with `python3 /tmp/tcr_embed_
 
 ```python
 import os, sys, json
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
 import requests
 
 OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
@@ -190,6 +223,17 @@ Write this to `/tmp/tcr_search.py` and run it with `python3 /tmp/tcr_search.py`:
 
 ```python
 import os, sys, json
+# Load .env file if present
+_env_path = os.path.join(os.getcwd(), ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
 import psycopg2
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
