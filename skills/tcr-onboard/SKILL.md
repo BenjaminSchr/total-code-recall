@@ -61,6 +61,7 @@ LLM_PROVIDER         = _cfg("LLM_PROVIDER",         "llm_provider",          "ol
 OPENROUTER_API_KEY   = _cfg("OPENROUTER_API_KEY",    "openrouter_api_key",    "")
 OPENROUTER_MODEL     = _cfg("OPENROUTER_MODEL",      "openrouter_model",      "google/gemini-flash-2.0")
 PARALLEL_WORKERS     = int(_cfg("PARALLEL_WORKERS",  "parallel_workers",      "10"))
+EMBEDDING_PROVIDER   = _cfg("EMBEDDING_PROVIDER",    "embedding_provider",    "ollama")
 ```
 
 ---
@@ -681,6 +682,7 @@ SUMMARY_MODEL        = os.getenv("SUMMARY_MODEL",        "devstral:24b")
 LLM_PROVIDER         = os.getenv("LLM_PROVIDER",         "ollama")
 OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY",   "")
 OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",     "google/gemini-flash-2.0")
+EMBEDDING_PROVIDER   = os.getenv("EMBEDDING_PROVIDER",   "ollama")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
 
@@ -751,17 +753,33 @@ def generate_summary(code_text):
         resp.raise_for_status()
         return resp.json()["response"].strip()
 
-def get_embedding(text):
-    """Call embedding model via Ollama embed API."""
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/embed",
-        json={"model": EMBEDDING_MODEL, "input": text},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    # Ollama embed returns {"embeddings": [[...]]} (list of lists)
-    return data["embeddings"][0]
+def embed_text(text):
+    """Generate embedding via configured provider."""
+    if EMBEDDING_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": EMBEDDING_MODEL,
+                "input": text
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+    else:
+        # Ollama (existing logic)
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/embeddings", json={
+            "model": EMBEDDING_MODEL,
+            "prompt": text
+        }, timeout=60)
+        resp.raise_for_status()
+        return resp.json()["embedding"]
 
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
@@ -816,13 +834,13 @@ for i, chunk in enumerate(chunks):
 
     # --- Embeddings ---
     try:
-        summary_vec = get_embedding(summary_text)
+        summary_vec = embed_text(summary_text)
     except Exception as e:
         print(f"    WARN: summary embedding failed: {e} — skipping chunk")
         continue
 
     try:
-        code_vec = get_embedding(chunk["content"])
+        code_vec = embed_text(chunk["content"])
     except Exception as e:
         print(f"    WARN: code embedding failed: {e} — skipping chunk")
         continue
@@ -914,6 +932,7 @@ PROJECT_NAME    = os.environ["TCR_PROJECT"]
 LLM_PROVIDER         = os.getenv("LLM_PROVIDER",       "ollama")
 OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",   "google/gemini-flash-2.0")
+EMBEDDING_PROVIDER   = os.getenv("EMBEDDING_PROVIDER", "ollama")
 
 def generate_summary(prompt):
     if LLM_PROVIDER == "openrouter":
@@ -944,15 +963,33 @@ def generate_summary(prompt):
         resp.raise_for_status()
         return resp.json()["response"].strip()
 
-def get_embedding(text):
-    """Call embedding model via Ollama embed API."""
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/embed",
-        json={"model": EMBEDDING_MODEL, "input": text},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    return resp.json()["embeddings"][0]
+def embed_text(text):
+    """Generate embedding via configured provider."""
+    if EMBEDDING_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": EMBEDDING_MODEL,
+                "input": text
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+    else:
+        # Ollama (existing logic)
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/embeddings", json={
+            "model": EMBEDDING_MODEL,
+            "prompt": text
+        }, timeout=60)
+        resp.raise_for_status()
+        return resp.json()["embedding"]
 
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
@@ -990,7 +1027,7 @@ for file_path in file_paths:
 
     # Embed the file summary
     try:
-        vec = get_embedding(file_summary)
+        vec = embed_text(file_summary)
     except Exception as e:
         print(f"  WARN: embedding failed for {file_path}: {e} — skipping")
         continue
@@ -1030,7 +1067,7 @@ for dir_path, dir_files in dirs.items():
         print(f"  WARN: module summary failed for {dir_path}: {e} — skipping")
         continue
     try:
-        module_vec = get_embedding(module_summary)
+        module_vec = embed_text(module_summary)
     except Exception as e:
         print(f"  WARN: module embedding failed for {dir_path}: {e} — skipping")
         continue
@@ -1055,7 +1092,7 @@ except Exception as e:
     print(f"  WARN: repo summary failed: {e} — using fallback")
     repo_summary = f"Codebase index for project {PROJECT_NAME}."
 try:
-    repo_vec = get_embedding(repo_summary)
+    repo_vec = embed_text(repo_summary)
 except Exception as e:
     print(f"  WARN: repo embedding failed: {e} — skipping repo summary")
     repo_vec = None
