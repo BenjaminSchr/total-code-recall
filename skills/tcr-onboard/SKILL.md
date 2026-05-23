@@ -193,6 +193,84 @@ except Exception as e:
 
 ---
 
+### 2d. Sanity Check — Existing Index
+
+**Goal:** Detect if this project is already indexed and warn the user before any data is deleted.
+
+Write this to `/tmp/tcr_check_existing.py` and run it with `TCR_PROJECT={project_name} python3 /tmp/tcr_check_existing.py`:
+
+```python
+import os, sys, json
+
+# Layer 2: supplement from global config.json
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("DATABASE_URL", "database_url"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass
+
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
+PROJECT_NAME = os.environ.get("TCR_PROJECT", "")
+
+if not PROJECT_NAME:
+    print("CHECK_FAIL: TCR_PROJECT not set")
+    sys.exit(1)
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT chunk_count, last_indexed_at, last_commit_hash, embedding_model FROM _index_meta WHERE project = %s",
+        (PROJECT_NAME,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        chunk_count, last_indexed_at, last_commit_hash, embedding_model = row
+        short_hash = last_commit_hash[:8] if last_commit_hash else "unknown"
+        print(f"EXISTING_INDEX chunks={chunk_count} last_indexed={last_indexed_at} commit={short_hash} model={embedding_model}")
+    else:
+        print("NO_EXISTING_INDEX")
+except Exception as e:
+    print(f"CHECK_FAIL: {e}")
+    sys.exit(1)
+```
+
+**Parse the output:**
+
+- If `NO_EXISTING_INDEX`: continue to Step 3. No warning needed.
+- If `CHECK_FAIL`: print the error and **stop**.
+- If `EXISTING_INDEX chunks=... last_indexed=... commit=... model=...`:
+  - **STOP and display this warning to the user:**
+    ```
+    ⚠️  WARNING: Project '{project_name}' is already indexed.
+
+       Chunks indexed:  {chunk_count}
+       Last indexed:    {last_indexed_at}
+       Commit:          {commit}
+       Embedding model: {embedding_model}
+
+    Re-running /tcr-onboard will DELETE all existing index data and rebuild
+    from scratch. This cannot be undone.
+
+    Use /tcr-update for incremental updates instead.
+
+    Type YES to confirm full re-index, or anything else to cancel:
+    ```
+  - Wait for the user's response.
+  - If the user types exactly `YES` (case-sensitive): print `"Re-index confirmed. Proceeding..."` and continue to Step 3.
+  - For any other response (including empty): print `"Re-index cancelled. Run /tcr-update to update incrementally."` and **stop immediately**.
+
+---
+
 ## Step 3: Create Project Table
 
 **Goal:** Create the pgvector table for this project (idempotent — safe to re-run).
