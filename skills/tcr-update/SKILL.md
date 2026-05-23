@@ -26,6 +26,7 @@ At the start, read these from the environment:
 
 ```python
 import os
+import json
 # Load .env file if present
 _env_path = os.path.join(os.getcwd(), ".env")
 if not os.path.exists(_env_path):
@@ -37,12 +38,29 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
-DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
-OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
-CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE",   "50"))
-CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", "15"))
+# --- Config Loader (3-layer) ---
+# Layer 1: project .env (already loaded above)
+# Layer 2: global config.json
+_GLOBAL_CONFIG = {}
+_CONFIG_PATH = os.path.expanduser("~/.config/total-code-recall/config.json")
+if os.path.exists(_CONFIG_PATH):
+    with open(_CONFIG_PATH) as _f:
+        _GLOBAL_CONFIG = json.load(_f)
+
+def _cfg(env_key, config_key, default):
+    """Priority: env var > global config > default"""
+    return os.environ.get(env_key) or _GLOBAL_CONFIG.get(config_key) or default
+
+DATABASE_URL      = _cfg("DATABASE_URL",    "database_url",         "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL        = _cfg("OLLAMA_URL",      "ollama_url",           "http://localhost:11434")
+EMBEDDING_MODEL   = _cfg("EMBEDDING_MODEL", "embedding_model",      "nomic-embed-text")
+SUMMARY_MODEL     = _cfg("SUMMARY_MODEL",   "ollama_summary_model", "devstral:24b")
+CHUNK_SIZE        = int(_cfg("CHUNK_SIZE",  "chunk_size",           "50"))
+CHUNK_OVERLAP     = int(_cfg("CHUNK_OVERLAP","chunk_overlap",       "15"))
+LLM_PROVIDER         = _cfg("LLM_PROVIDER",         "llm_provider",          "ollama")
+OPENROUTER_API_KEY   = _cfg("OPENROUTER_API_KEY",    "openrouter_api_key",    "")
+OPENROUTER_MODEL     = _cfg("OPENROUTER_MODEL",      "openrouter_model",      "google/gemini-flash-2.0")
+PARALLEL_WORKERS     = int(_cfg("PARALLEL_WORKERS",  "parallel_workers",      "10"))
 ```
 
 ---
@@ -390,10 +408,13 @@ if os.path.exists(_env_path):
 import requests
 import psycopg2
 
-DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
-OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL   = os.getenv("SUMMARY_MODEL",   "devstral:24b")
+DATABASE_URL         = os.getenv("DATABASE_URL",         "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL           = os.getenv("OLLAMA_URL",           "http://localhost:11434")
+EMBEDDING_MODEL      = os.getenv("EMBEDDING_MODEL",      "nomic-embed-text")
+SUMMARY_MODEL        = os.getenv("SUMMARY_MODEL",        "devstral:24b")
+LLM_PROVIDER         = os.getenv("LLM_PROVIDER",         "ollama")
+OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY",   "")
+OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",     "google/gemini-flash-2.0")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
 
@@ -418,13 +439,32 @@ def generate_summary(code_text):
         "Focus on purpose and behavior, not syntax.\n\n"
         f"```\n{code_text[:3000]}\n```"
     )
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={"model": SUMMARY_MODEL, "prompt": prompt, "stream": False},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["response"].strip()
+    if LLM_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": OPENROUTER_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 200
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    else:
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/generate", json={
+            "model": SUMMARY_MODEL,
+            "prompt": prompt,
+            "stream": False
+        }, timeout=120)
+        resp.raise_for_status()
+        return resp.json()["response"].strip()
 
 def get_embedding(text):
     resp = requests.post(
