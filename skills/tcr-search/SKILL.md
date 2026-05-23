@@ -1,13 +1,13 @@
 ---
-name: code-search
+name: tcr-search
 description: Semantically search an indexed Git project. Embeds the user query via Ollama, runs a vector similarity search with dedup against the pgvector table, and returns the top 10 most relevant code chunks with file, lines, type, score, and full content.
 ---
 
-# /code-search — Skill Instructions
+# /tcr-search — Skill Instructions
 
-You are executing the **code-search** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
+You are executing the **tcr-search** skill. Follow these 5 steps in order. Do not skip any step. At each step, report what you are doing.
 
-Usage: `/code-search <query>`
+Usage: `/tcr-search <query>`
 
 ---
 
@@ -136,8 +136,8 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_check_search_meta.py
 
 Parse the output:
 
-- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /code-onboard first."` and **stop**.
-- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /code-onboard again."` and **stop**.
+- `NOT_INDEXED` — print `"Project '{project_name}' has not been indexed yet. Please run /tcr-onboard first."` and **stop**.
+- `MODEL_MISMATCH:{old_model}` — print `"Embedding model mismatch (index: {old_model}, current: {EMBEDDING_MODEL}). Please run /tcr-onboard again."` and **stop**.
 - `DB_FAIL: ...` — print `"Database not reachable. Please check DATABASE_URL and start the DB."` and **stop**.
 - `META_OK:{chunk_count}` — extract `chunk_count` and continue.
 
@@ -151,7 +151,7 @@ Report: `"Index OK: {chunk_count} chunks in '{project_name}'."`
 
 **Goal:** Convert the user's query text into a vector embedding using the same model as the index.
 
-The query text is whatever the user typed after `/code-search`. For example, if the user typed `/code-search "Datumsfilter"`, the query text is `Datumsfilter`.
+The query text is whatever the user typed after `/tcr-search`. For example, if the user typed `/tcr-search "Datumsfilter"`, the query text is `Datumsfilter`.
 
 Write this to `/tmp/tcr_embed_query.py` and run it with `python3 /tmp/tcr_embed_query.py`:
 
@@ -368,7 +368,7 @@ Do not continue to the next step if a critical error occurred. Print the error c
 ### Embedding model mismatch
 
 - If Step 2 returns `MODEL_MISMATCH`: the index was built with a different model. Searching with a different model produces meaningless results because the vector spaces are incompatible.
-- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/code-onboard` to rebuild the index with the new model.
+- Solution: set `EMBEDDING_MODEL` to match the indexed model, or run `/tcr-onboard` to rebuild the index with the new model.
 
 ### DB connection failure
 
@@ -377,7 +377,7 @@ Do not continue to the next step if a critical error occurred. Print the error c
 
 ### Project not indexed
 
-- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/code-onboard` first to build the index before searching.
+- If Step 2 returns `NOT_INDEXED`: the project table does not exist in `_index_meta`. Run `/tcr-onboard` first to build the index before searching.
 
 ### Empty results
 
