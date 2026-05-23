@@ -1,0 +1,23 @@
+{
+  "name": "total-code-recall",
+  "version": "0.1.0",
+  "description": "Semantic code search plugin for Claude Code. Index, update, and search your codebase with local embeddings via Ollama + pgvector.",
+  "author": "BenjaminSchr",
+  "skills": [
+    {
+      "name": "code-onboard",
+      "path": "skills/code-onboard/SKILL.md",
+      "description": "Index a project's codebase into pgvector for semantic search"
+    },
+    {
+      "name": "code-update",
+      "path": "skills/code-update/SKILL.md",
+      "description": "Update index with new commits since last onboard/update"
+    },
+    {
+      "name": "code-search",
+      "path": "skills/code-search/SKILL.md",
+      "description": "Semantic search over indexed codebase"
+    }
+  ]
+}
