@@ -1,0 +1,17 @@
+services:
+  total-code-recall-db:
+    image: pgvector/pgvector:pg16
+    container_name: total-code-recall-db
+    environment:
+      POSTGRES_DB: code_index_db
+      POSTGRES_USER: code_index_user
+      POSTGRES_PASSWORD: code_index_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - code_index_data:/var/lib/postgresql/data
+      - ./scripts/setup_db.sql:/docker-entrypoint-initdb.d/setup_db.sql
+    restart: unless-stopped
+
+volumes:
+  code_index_data:
