@@ -35,10 +35,10 @@
 ## Relational Layer (feature/relational-layer)
 
 ### Wave 5 — Phase 1: AST Layer
-| W5-T1 | Entity + relation tables in onboard | TODO |
-| W5-T2 | AST parsing step in onboard | TODO |
-| W5-T3 | Entity/relation cleanup in update | TODO |
-| W5-T4 | code-overview skill | TODO |
+| W5-T1 | Entity + relation tables in onboard | DONE |
+| W5-T2 | AST parsing step in onboard | DONE |
+| W5-T3 | Entity/relation cleanup in update | DONE |
+| W5-T4 | code-overview skill | DONE |
 
 ### Wave 6 — Phase 2: Hierarchical Summaries
 | W6-T1 | Summaries table in onboard | TODO |
