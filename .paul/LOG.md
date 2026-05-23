@@ -40,8 +40,22 @@
 - Wave Review: PASS (1 doku-issue fixed in Wave Fix)
 - All task branches merged into wave/W1-scaffold
 
+### APPLY Phase — Wave 2 Execution
+- W2-T1: code-onboard SKILL.md — DONE (543 lines, a1+a2 PASS)
+- W2-T2: code-update SKILL.md — DONE (581 lines, a1 CODE)
+- W2-T3: code-search SKILL.md — DONE (346 lines, a1 CODE)
+- Wave Review: FAIL — 2 HIGH bugs in update skill + 1 setup_db.sql permissions
+- Wave Fix: modified in files_to_delete + chunk_id collision + superuser docs
+- After Fix: PASS
+- Merged to dev, tagged W2_done
+
+### Zwischen-UNIFY W1+W2
+- SUMMARY.md updated
+- STATE.md updated
+- 3 open issues documented: German output, .env loading, tcr_index duplication
+
 ### Next Steps
-- Merge wave/W1-scaffold into dev
-- Zwischen-UNIFY (needs Ben's permission)
-- Execute W2 (skills)
-- Execute W3 (README)
+- Wave for open issues (German→English, .env loading)
+- W3: README + FAQ
+- Deep review with Opus agent
+- Final UNIFY
