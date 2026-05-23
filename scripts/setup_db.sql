@@ -48,3 +48,26 @@ CREATE TABLE IF NOT EXISTS _index_meta (
 -- CREATE INDEX ON {project_name} USING hnsw (embedding vector_cosine_ops);
 -- CREATE INDEX ON {project_name} (chunk_id);
 -- CREATE INDEX ON {project_name} (file_path);
+--
+-- CREATE TABLE {project_name}_entities (
+--     id SERIAL PRIMARY KEY,
+--     type VARCHAR(20) NOT NULL CHECK (type IN ('file','class','function','method','import')),
+--     name TEXT NOT NULL,
+--     file_path TEXT NOT NULL,
+--     line_start INT NOT NULL,
+--     line_end INT NOT NULL,
+--     parent_id INT REFERENCES {project_name}_entities(id) ON DELETE CASCADE
+-- );
+-- CREATE INDEX ON {project_name}_entities (file_path);
+-- CREATE INDEX ON {project_name}_entities (type);
+-- CREATE INDEX ON {project_name}_entities (name);
+--
+-- CREATE TABLE {project_name}_relations (
+--     id SERIAL PRIMARY KEY,
+--     from_id INT NOT NULL REFERENCES {project_name}_entities(id) ON DELETE CASCADE,
+--     to_id INT NOT NULL REFERENCES {project_name}_entities(id) ON DELETE CASCADE,
+--     type VARCHAR(20) NOT NULL CHECK (type IN ('calls','imports','extends','references','contains'))
+-- );
+-- CREATE INDEX ON {project_name}_relations (from_id);
+-- CREATE INDEX ON {project_name}_relations (to_id);
+-- CREATE INDEX ON {project_name}_relations (type);

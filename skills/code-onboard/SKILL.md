@@ -195,6 +195,29 @@ CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_chunk_id_idx
 
 CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_file_path_idx
     ON {PROJECT_NAME} (file_path);
+
+CREATE TABLE IF NOT EXISTS {PROJECT_NAME}_entities (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('file','class','function','method','import')),
+    name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    line_start INT NOT NULL,
+    line_end INT NOT NULL,
+    parent_id INT REFERENCES {PROJECT_NAME}_entities(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_entities_file_idx ON {PROJECT_NAME}_entities (file_path);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_entities_type_idx ON {PROJECT_NAME}_entities (type);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_entities_name_idx ON {PROJECT_NAME}_entities (name);
+
+CREATE TABLE IF NOT EXISTS {PROJECT_NAME}_relations (
+    id SERIAL PRIMARY KEY,
+    from_id INT NOT NULL REFERENCES {PROJECT_NAME}_entities(id) ON DELETE CASCADE,
+    to_id INT NOT NULL REFERENCES {PROJECT_NAME}_entities(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('calls','imports','extends','references','contains'))
+);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_from_idx ON {PROJECT_NAME}_relations (from_id);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_to_idx ON {PROJECT_NAME}_relations (to_id);
+CREATE INDEX IF NOT EXISTS {PROJECT_NAME}_relations_type_idx ON {PROJECT_NAME}_relations (type);
 """
 
 try:
