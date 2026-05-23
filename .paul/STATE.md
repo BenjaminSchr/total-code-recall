@@ -82,8 +82,8 @@
 | W13-T2 | Audit + fix SQL for Supabase pooler in tcr-onboard + tcr-update | DONE |
 | W13-T3 | Supabase docs in README + tcr-info (cloud setup section) | DONE |
 
-### Wave 14 — Test Suite
-| W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (9 tests) | TODO |
-| W14-T2 | Create tests/test_config.py — config loader priority (7 tests) | TODO |
-| W14-T3 | Create tests/test_db.py — schema/entity/vector/summary (9 tests) | TODO |
-| W14-T4 | Create tests/test_e2e.py — onboard → search → verify (5 tests) | TODO |
+### Wave 14 — Test Suite ✓ DONE (pending merge)
+| W14-T1 | Create tests/conftest.py + tests/test_sanitize.py (10 tests) | DONE |
+| W14-T2 | Create tests/test_config.py — config loader priority (7 tests) | DONE |
+| W14-T3 | Create tests/test_db.py — schema/entity/vector/summary (8 tests) | DONE |
+| W14-T4 | Create tests/test_e2e.py — onboard → search → verify (5 tests) | DONE |
