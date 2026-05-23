@@ -110,3 +110,14 @@
 - W11-T2: Live OpenRouter model list (5-provider filter) in tcr-config — DONE
 - Wave Review: FAIL (1 issue: STATE.md not updated → fixed)
 - Wave Fix: STATE.md + LOG.md updated
+
+### Wave 12 — Embedding Provider (2026-05-23)
+- W12-T1: Embedding provider toggle functional in tcr-config — DONE
+- W12-T2: OpenRouter embedding calls in 4 SKILL.md files — DONE
+- Wave Review: FAIL (5 bugs found, 3 HIGH)
+  - BUG-001 (HIGH): Sub-scripts missing config.json loader for EMBEDDING_PROVIDER → fixed (6 sub-scripts each in onboard/update)
+  - BUG-002 (HIGH): Ollama check unconditional → fixed (skip if both providers = openrouter)
+  - BUG-003 (HIGH): Vector dimension warning missing → fixed (768-dim warning + google/text-embedding-004 as default)
+  - BUG-004 (LOW): Stale error messages → acceptable (not fixed)
+  - BUG-005 (MEDIUM): STATE.md not updated → fixed
+- Wave Fix: committed on wave/W12-embedding-provider

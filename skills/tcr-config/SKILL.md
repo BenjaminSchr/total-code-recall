@@ -98,22 +98,37 @@ else:
 
 **Toggle 2 — Embedding Provider:**
 
-```
+```python
+# Toggle 2 — Embedding Provider
+print("""
 Embedding Provider:
   [1] Local — Ollama nomic-embed-text (recommended, fast, free)
-  [2] Cloud — OpenRouter (requires API key)
+  [2] Cloud — OpenRouter embeddings (costs per token, needs API key)
 
-Enter 1 or 2:
+Enter 1 or 2 [default: 1]:
+""")
+emb_choice = input("> ").strip() or "1"
+
+if emb_choice == "2":
+    # OpenRouter embedding
+    cfg["embedding_provider"] = "openrouter"
+    # Reuse openrouter_api_key if already set in this session
+    if not cfg.get("openrouter_api_key"):
+        cfg["openrouter_api_key"] = input("OpenRouter API key (sk-or-...): ").strip()
+    print("OpenRouter embedding models:")
+    print("  ⚠️  IMPORTANT: The default schema uses vector(768).")
+    print("     Only 768-dimensional models are compatible:")
+    print("  [1] google/text-embedding-004       (768 dims) ← RECOMMENDED")
+    print("  [2] openai/text-embedding-3-small   (1536 dims) — requires schema change")
+    print("  [3] openai/text-embedding-3-large   (3072 dims) — requires schema change")
+    emb_model = input("Enter model ID [default: google/text-embedding-004]: ").strip()
+    cfg["embedding_model"] = emb_model or "google/text-embedding-004"
+else:
+    # Local Ollama embedding
+    cfg["embedding_provider"] = "ollama"
+    cfg["embedding_model"] = "nomic-embed-text"
+    print("Using local Ollama embedding: nomic-embed-text")
 ```
-
-- If `[1]` Local:
-  - Ask: `Embedding model [default: nomic-embed-text]:`
-  - Set: `cfg["embedding_provider"] = "ollama"`, `cfg["embedding_model"] = <model>`
-
-- If `[2]` Cloud:
-  - Ask: `OpenRouter embedding model [default: text-embedding-3-small]:`
-  - Set: `cfg["embedding_provider"] = "openrouter"`, `cfg["embedding_model"] = <model>`
-  - Note: uses same `openrouter_api_key` set in Toggle 1. If LLM was set to Local, ask for the API key now.
 
 ---
 
@@ -155,11 +170,42 @@ What would you like to change?
   [5] Reset (wipe config, start fresh)
 ```
 
-- For `[1]`, `[2]`, `[3]`: run the corresponding Toggle from Step 2, then jump to Step 4.
+- For `[1]`: run the Toggle 1 logic from Step 2, then jump to Step 4.
+- For `[2]`: run the Toggle 2 (Embedding Provider) logic below, then jump to Step 4.
+- For `[3]`: run the Toggle 3 logic from Step 2, then jump to Step 4.
 - For `[4]`: print `"Config unchanged."` and stop.
 - For `[5]`: delete config file, print `"Config reset. Run /tcr-config again to set up."`, and stop.
 
 ```python
+# Handle [2] — Embedding Provider change
+if change_choice == "2":
+    print("""
+Embedding Provider:
+  [1] Local — Ollama nomic-embed-text (recommended, fast, free)
+  [2] Cloud — OpenRouter embeddings (costs per token, needs API key)
+
+Enter 1 or 2 [default: 1]:
+""")
+    emb_choice = input("> ").strip() or "1"
+
+    if emb_choice == "2":
+        # OpenRouter embedding
+        cfg["embedding_provider"] = "openrouter"
+        # Reuse openrouter_api_key if already set in config
+        if not cfg.get("openrouter_api_key"):
+            cfg["openrouter_api_key"] = input("OpenRouter API key (sk-or-...): ").strip()
+        print("OpenRouter embedding models (common choices):")
+        print("  openai/text-embedding-3-small")
+        print("  openai/text-embedding-3-large")
+        print("  google/text-embedding-004")
+        emb_model = input("Enter model ID [default: openai/text-embedding-3-small]: ").strip()
+        cfg["embedding_model"] = emb_model or "openai/text-embedding-3-small"
+    else:
+        # Local Ollama embedding
+        cfg["embedding_provider"] = "ollama"
+        cfg["embedding_model"] = "nomic-embed-text"
+        print("Using local Ollama embedding: nomic-embed-text")
+
 # Reset:
 os.remove(CONFIG_PATH)
 ```

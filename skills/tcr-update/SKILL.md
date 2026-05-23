@@ -61,6 +61,7 @@ LLM_PROVIDER         = _cfg("LLM_PROVIDER",         "llm_provider",          "ol
 OPENROUTER_API_KEY   = _cfg("OPENROUTER_API_KEY",    "openrouter_api_key",    "")
 OPENROUTER_MODEL     = _cfg("OPENROUTER_MODEL",      "openrouter_model",      "google/gemini-flash-2.0")
 PARALLEL_WORKERS     = int(_cfg("PARALLEL_WORKERS",  "parallel_workers",      "10"))
+EMBEDDING_PROVIDER   = _cfg("EMBEDDING_PROVIDER",    "embedding_provider",    "ollama")
 ```
 
 ---
@@ -126,6 +127,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 import psycopg2
 
 DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
@@ -276,6 +296,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 import psycopg2
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
@@ -405,6 +444,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 import requests
 import psycopg2
 
@@ -415,6 +473,7 @@ SUMMARY_MODEL        = os.getenv("SUMMARY_MODEL",        "devstral:24b")
 LLM_PROVIDER         = os.getenv("LLM_PROVIDER",         "ollama")
 OPENROUTER_API_KEY   = os.getenv("OPENROUTER_API_KEY",   "")
 OPENROUTER_MODEL     = os.getenv("OPENROUTER_MODEL",     "google/gemini-flash-2.0")
+EMBEDDING_PROVIDER   = os.getenv("EMBEDDING_PROVIDER",   "ollama")
 PROJECT_NAME    = os.environ["TCR_PROJECT"]
 HEAD_HASH       = os.environ["TCR_HEAD_HASH"]
 
@@ -485,16 +544,33 @@ def generate_summary(code_text):
         resp.raise_for_status()
         return resp.json()["response"].strip()
 
-def get_embedding(text):
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/embed",
-        json={"model": EMBEDDING_MODEL, "input": text},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    # Ollama embed returns {"embeddings": [[...]]} (list of lists)
-    return data["embeddings"][0]
+def embed_text(text):
+    """Generate embedding via configured provider."""
+    if EMBEDDING_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": EMBEDDING_MODEL,
+                "input": text
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+    else:
+        # Ollama (existing logic)
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/embeddings", json={
+            "model": EMBEDDING_MODEL,
+            "prompt": text
+        }, timeout=60)
+        resp.raise_for_status()
+        return resp.json()["embedding"]
 
 conn = psycopg2.connect(DATABASE_URL)
 cur  = conn.cursor()
@@ -543,13 +619,13 @@ for i, chunk in enumerate(chunks):
 
     # --- Embeddings ---
     try:
-        summary_vec = get_embedding(summary_text)
+        summary_vec = embed_text(summary_text)
     except Exception as e:
         print(f"    WARN: summary embedding failed: {e} — skipping chunk")
         continue
 
     try:
-        code_vec = get_embedding(chunk["content"])
+        code_vec = embed_text(chunk["content"])
     except Exception as e:
         print(f"    WARN: code embedding failed: {e} — skipping chunk")
         continue
@@ -627,6 +703,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 
 try:
     from tree_sitter_languages import get_parser
@@ -894,6 +989,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 import psycopg2
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")
@@ -921,7 +1035,7 @@ TCR_PROJECT="{project_name}" python3 /tmp/tcr_delete_summaries.py
 - If output starts with `SUMMARIES_CLEARED`: continue.
 - If output starts with `SUMMARIES_CLEAR_FAIL`: print the error and **stop**.
 
-**Then regenerate all summaries** by writing and running the same `tcr_build_summaries.py` from onboard Step 7 (copy the full script verbatim, including the `generate_summary` and `get_embedding` helper functions):
+**Then regenerate all summaries** by writing and running the same `tcr_build_summaries.py` from onboard Step 7 (copy the full script verbatim, including the `generate_summary` and `embed_text` helper functions):
 
 ```bash
 TCR_PROJECT="{project_name}" python3 /tmp/tcr_build_summaries.py
@@ -959,6 +1073,25 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
+# Layer 2: supplement from global config.json (fills in what .env didn't set)
+try:
+    import json as _j2
+    with open(os.path.expanduser("~/.config/total-code-recall/config.json")) as _f2:
+        _gc = _j2.load(_f2)
+    for _k2, _v2 in [
+        ("EMBEDDING_PROVIDER", "embedding_provider"),
+        ("OPENROUTER_API_KEY",  "openrouter_api_key"),
+        ("OPENROUTER_MODEL",    "openrouter_model"),
+        ("LLM_PROVIDER",        "llm_provider"),
+        ("DATABASE_URL",        "database_url"),
+        ("OLLAMA_URL",          "ollama_url"),
+        ("EMBEDDING_MODEL",     "embedding_model"),
+        ("SUMMARY_MODEL",       "ollama_summary_model"),
+    ]:
+        if not os.environ.get(_k2) and _v2 in _gc:
+            os.environ[_k2] = str(_gc[_v2])
+except Exception:
+    pass  # config.json missing or malformed — use env/defaults
 import psycopg2
 
 DATABASE_URL    = os.getenv("DATABASE_URL",    "postgresql://code_index_user:code_index_pass@localhost:5433/code_index_db")

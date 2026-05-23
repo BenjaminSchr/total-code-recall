@@ -52,9 +52,11 @@ def _cfg(env_key, config_key, default):
     """Priority: env var > global config > default"""
     return os.environ.get(env_key) or _GLOBAL_CONFIG.get(config_key) or default
 
-DATABASE_URL      = _cfg("DATABASE_URL",    "database_url",    "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
-OLLAMA_URL        = _cfg("OLLAMA_URL",      "ollama_url",      "http://localhost:11434")
-EMBEDDING_MODEL   = _cfg("EMBEDDING_MODEL", "embedding_model", "nomic-embed-text")
+DATABASE_URL        = _cfg("DATABASE_URL",        "database_url",        "postgresql://code_index_user:code_index_pass@localhost:5434/code_index_db")
+OLLAMA_URL          = _cfg("OLLAMA_URL",          "ollama_url",          "http://localhost:11434")
+EMBEDDING_MODEL     = _cfg("EMBEDDING_MODEL",     "embedding_model",     "nomic-embed-text")
+EMBEDDING_PROVIDER  = _cfg("EMBEDDING_PROVIDER",  "embedding_provider",  "ollama")
+OPENROUTER_API_KEY  = _cfg("OPENROUTER_API_KEY",  "openrouter_api_key",  "")
 ```
 
 ---
@@ -207,20 +209,42 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(_k.strip(), _v.strip())
 import requests
 
-OLLAMA_URL      = os.getenv("OLLAMA_URL",      "http://localhost:11434")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-QUERY_TEXT      = os.environ["TCR_QUERY"]
+OLLAMA_URL         = os.getenv("OLLAMA_URL",         "http://localhost:11434")
+EMBEDDING_MODEL    = os.getenv("EMBEDDING_MODEL",    "nomic-embed-text")
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+QUERY_TEXT         = os.environ["TCR_QUERY"]
+
+def embed_text(text):
+    """Generate embedding via configured provider."""
+    if EMBEDDING_PROVIDER == "openrouter":
+        import requests
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": EMBEDDING_MODEL,
+                "input": text
+            },
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+    else:
+        # Ollama (existing logic)
+        import requests
+        resp = requests.post(f"{OLLAMA_URL}/api/embeddings", json={
+            "model": EMBEDDING_MODEL,
+            "prompt": text
+        }, timeout=60)
+        resp.raise_for_status()
+        return resp.json()["embedding"]
 
 try:
-    resp = requests.post(
-        f"{OLLAMA_URL}/api/embed",
-        json={"model": EMBEDDING_MODEL, "input": QUERY_TEXT},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    # Ollama embed returns {"embeddings": [[...]]} (list of lists)
-    vec = data["embeddings"][0]
+    vec = embed_text(QUERY_TEXT)
     print(json.dumps(vec))
 except Exception as e:
     print(f"EMBED_FAIL: {e}", file=sys.stderr)
