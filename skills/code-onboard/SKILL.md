@@ -272,6 +272,8 @@ def is_blocked(path):
 files_to_index = []
 for path in raw_find_output.splitlines():
     path = path.strip()
+    if path.startswith("./"):
+        path = path[2:]
     if not path:
         continue
     if is_blocked(path):

@@ -192,6 +192,8 @@ for line in git_diff_output.splitlines():
     elif status.startswith("R"):
         # parts[1] = old path, parts[2] = new path
         renamed.append((parts[1], parts[2]))
+
+# Note: git diff --name-status paths are already bare-relative (e.g. "app/main.py") — no ./ stripping needed.
 ```
 
 **Apply the same allowlist/blocklist as onboard.** Filter out paths that do not belong in the index:
